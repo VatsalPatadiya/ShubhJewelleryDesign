@@ -76,11 +76,13 @@ export function ChevronIcon({ direction = 'left', size = 18 }) {
   );
 }
 
-export function GemIcon(props) {
+export function RingIcon(props) {
   return (
     <Base {...props}>
-      <path d="M6 3.5h12l3 5.5-9 11.5-9-11.5 3-5.5Z" />
-      <path d="M3 9h18M9 3.5 7 9l5 11.5M15 3.5 17 9l-5 11.5" />
+      <circle cx="12" cy="15" r="5" strokeWidth="1.8" />
+      <path d="M10 10.5l2-2 2 2" strokeWidth="1.8" />
+      <path d="M12 2l-3.5 4 3.5 3 3.5-3-3.5-4z" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M12 2v7M8.5 6h7" strokeWidth="1" strokeDasharray="1 1" />
     </Base>
   );
 }

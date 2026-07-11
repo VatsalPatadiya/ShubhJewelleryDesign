@@ -29,4 +29,8 @@ contextBridge.exposeInMainWorld('api', {
     restore: () => ipcRenderer.invoke('backup:restore'),
     showInFolder: (filePath) => ipcRenderer.invoke('backup:showInFolder', filePath),
   },
+  settings: {
+    get: (key) => ipcRenderer.invoke('settings:get', key),
+    set: (key, value) => ipcRenderer.invoke('settings:set', { key, value }),
+  },
 });

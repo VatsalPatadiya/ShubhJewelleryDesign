@@ -1,39 +1,81 @@
+/* ──────────────────────────────────────────────────────────────
+   Design Tokens — Shubh Jewellery Billing
+   Premium gold-accent palette with DM Sans typography
+   ────────────────────────────────────────────────────────────── */
 :root {
-  --bg: #EDF1F3;
+  /* ── Background & Surface ── */
+  --bg: #F4F2EE;
+  --bg-subtle: #EAE7E1;
   --surface: #FFFFFF;
-  --surface-sunken: #F5F8F9;
-  --border: #DEE6EA;
-  --text-primary: #24262B;
+  --surface-sunken: #F9F8F6;
+  --surface-elevated: #FFFFFF;
+
+  /* ── Borders ── */
+  --border: #E2DED6;
+  --border-strong: #CCC7BD;
+
+  /* ── Text ── */
+  --text-primary: #1A1A2E;
   --text-secondary: #6B7280;
-  --text-on-accent: #1B3A40;
+  --text-tertiary: #9CA3AF;
+  --text-on-accent: #FFFFFF;
+  --text-on-accent-soft: #4A3A1A;
 
-  --accent: #AED9E0;
-  --accent-hover: #96C7D0;
-  --accent-soft: rgba(174, 217, 224, 0.28);
-  --accent-ring: rgba(174, 217, 224, 0.45);
+  /* ── Accent (Gold / Jewellery) ── */
+  --accent: #C8963E;
+  --accent-hover: #B5852F;
+  --accent-light: #D4A853;
+  --accent-soft: rgba(200, 150, 62, 0.12);
+  --accent-ring: rgba(200, 150, 62, 0.25);
+  --accent-gradient: linear-gradient(135deg, #C8963E 0%, #D4A853 100%);
 
-  --success: #3D7A4C;
-  --warning: #B5651D;
-  --danger: #B3413B;
+  /* ── Semantic ── */
+  --success: #16A34A;
+  --success-soft: rgba(22, 163, 74, 0.1);
+  --warning: #D97706;
+  --warning-soft: rgba(217, 119, 6, 0.1);
+  --danger: #DC2626;
+  --danger-hover: #C52020;
+  --danger-soft: rgba(220, 38, 38, 0.08);
   --whatsapp: #25D366;
+  --whatsapp-soft: rgba(37, 211, 102, 0.1);
 
+  /* ── Spacing Scale ── */
+  --space-0: 4px;
   --space-1: 8px;
   --space-2: 16px;
   --space-3: 24px;
   --space-4: 32px;
+  --space-5: 40px;
+  --space-6: 48px;
 
-  --radius: 12px;
+  /* ── Border Radius ── */
+  --radius-xs: 6px;
   --radius-sm: 8px;
+  --radius: 12px;
   --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 999px;
 
-  --shadow-sm: 0 1px 2px rgba(20, 30, 40, 0.05);
-  --shadow-md: 0 4px 16px rgba(20, 30, 40, 0.08);
-  --shadow-lg: 0 12px 32px rgba(20, 30, 40, 0.14);
+  /* ── Shadows ── */
+  --shadow-xs: 0 1px 2px rgba(20, 20, 40, 0.04);
+  --shadow-sm: 0 1px 3px rgba(20, 20, 40, 0.06), 0 1px 2px rgba(20, 20, 40, 0.04);
+  --shadow-md: 0 4px 12px rgba(20, 20, 40, 0.08), 0 2px 4px rgba(20, 20, 40, 0.04);
+  --shadow-lg: 0 12px 32px rgba(20, 20, 40, 0.12), 0 4px 8px rgba(20, 20, 40, 0.06);
+  --shadow-xl: 0 20px 48px rgba(20, 20, 40, 0.16), 0 8px 16px rgba(20, 20, 40, 0.08);
+  --shadow-accent: 0 4px 14px rgba(200, 150, 62, 0.25);
 
-  --sidebar-expanded: 240px;
+  /* ── Sidebar ── */
+  --sidebar-expanded: 256px;
   --sidebar-collapsed: 72px;
 
+  /* ── Transitions ── */
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --transition-fast: 0.15s var(--ease);
+  --transition-normal: 0.2s var(--ease);
+  --transition-slow: 0.3s var(--ease);
 
-  --font-sans: -apple-system, "Segoe UI", Inter, sans-serif;
+  /* ── Typography ── */
+  --font-sans: 'DM Sans', sans-serif;
 }

@@ -1,6 +1,6 @@
 {
   "name": "customer-billing-app",
-  "productName": "Customer Billing",
+  "productName": "Shubh Jewellers",
   "version": "1.0.0",
   "description": "Offline desktop billing app for customers, products, bills and WhatsApp bill sharing.",
   "main": "electron/main.js",
@@ -13,6 +13,7 @@
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
     "adm-zip": "^0.5.16",
     "archiver": "^7.0.1",
     "better-sqlite3": "^11.10.0",
@@ -33,7 +34,7 @@
   },
   "build": {
     "appId": "com.shubhjewellery.customerbilling",
-    "productName": "Customer Billing",
+    "productName": "Shubh Jewellers",
     "files": [
       "dist/**/*",
       "electron/**/*",
@@ -42,7 +43,7 @@
     "extraResources": [],
     "win": {
       "target": "nsis",
-      "icon": "build/icon.ico"
+      "icon": "build/icon.png"
     },
     "nsis": {
       "oneClick": false,

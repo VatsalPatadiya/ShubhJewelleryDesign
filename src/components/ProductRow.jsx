@@ -6,7 +6,7 @@ export default function ProductRow({ row, productOptions, onChange, onRemove, on
 
   return (
     <div className="bill-row">
-      <div className="field" style={{ marginBottom: 0 }}>
+      <div className="field-inline">
         <label>Product</label>
         <EditableDropdown
           options={productOptions}
@@ -17,28 +17,31 @@ export default function ProductRow({ row, productOptions, onChange, onRemove, on
         />
       </div>
 
-      <div className="radio-group">
-        <label>
-          <input
-            type="radio"
-            name={`mode-${row.id}`}
-            checked={row.mode === 'GRAM'}
-            onChange={() => onChange(row.id, { mode: 'GRAM' })}
-          />
-          Gram
-        </label>
-        <label>
-          <input
-            type="radio"
-            name={`mode-${row.id}`}
-            checked={row.mode === 'QUANTITY'}
-            onChange={() => onChange(row.id, { mode: 'QUANTITY' })}
-          />
-          Quantity
-        </label>
+      <div className="field-inline">
+        <label>Unit</label>
+        <div className="radio-group">
+          <label>
+            <input
+              type="radio"
+              name={`mode-${row.id}`}
+              checked={row.mode === 'GRAM'}
+              onChange={() => onChange(row.id, { mode: 'GRAM' })}
+            />
+            Gram
+          </label>
+          <label>
+            <input
+              type="radio"
+              name={`mode-${row.id}`}
+              checked={row.mode === 'QUANTITY'}
+              onChange={() => onChange(row.id, { mode: 'QUANTITY' })}
+            />
+            Quantity
+          </label>
+        </div>
       </div>
 
-      <div className="field" style={{ marginBottom: 0 }}>
+      <div className="field-inline">
         <label>{row.mode === 'GRAM' ? 'Grams' : 'Qty'}</label>
         <input
           type="number"
@@ -49,7 +52,7 @@ export default function ProductRow({ row, productOptions, onChange, onRemove, on
         />
       </div>
 
-      <div className="field" style={{ marginBottom: 0 }}>
+      <div className="field-inline">
         <label>{row.mode === 'GRAM' ? 'Price / gram' : 'Price / unit'}</label>
         <input
           type="number"
@@ -60,7 +63,7 @@ export default function ProductRow({ row, productOptions, onChange, onRemove, on
         />
       </div>
 
-      <div className="field" style={{ marginBottom: 0 }}>
+      <div className="field-inline">
         <label>Line Total</label>
         <input type="text" readOnly value={formatCurrency(lineTotal)} tabIndex={-1} />
       </div>

@@ -12,23 +12,77 @@ function emptyRow() {
 const selectStyles = {
   control: (base, state) => ({
     ...base,
-    minHeight: 40,
+    minHeight: 42,
     borderRadius: 8,
-    borderColor: state.isFocused ? 'var(--accent-hover)' : 'var(--border)',
+    borderColor: state.isFocused ? 'var(--accent)' : 'var(--border)',
     boxShadow: state.isFocused ? '0 0 0 3px var(--accent-ring)' : 'none',
     fontSize: 14,
+    fontFamily: 'var(--font-sans)',
+    backgroundColor: 'var(--surface)',
+    '&:hover': {
+      borderColor: state.isFocused ? 'var(--accent)' : 'var(--border-strong)',
+    },
   }),
   option: (base, state) => ({
     ...base,
     backgroundColor: state.isSelected
       ? 'var(--accent)'
       : state.isFocused
-      ? 'var(--surface-sunken)'
+      ? 'var(--accent-soft)'
       : 'transparent',
     color: state.isSelected ? 'var(--text-on-accent)' : 'var(--text-primary)',
     fontWeight: state.isSelected ? 600 : 400,
+    fontSize: 14,
+    fontFamily: 'var(--font-sans)',
+    cursor: 'pointer',
+    '&:active': {
+      backgroundColor: 'var(--accent-soft)',
+    },
   }),
-  menu: (base) => ({ ...base, borderRadius: 8, overflow: 'hidden', boxShadow: 'var(--shadow-md)' }),
+  menu: (base) => ({
+    ...base,
+    borderRadius: 12,
+    overflow: 'hidden',
+    boxShadow: 'var(--shadow-lg)',
+    border: '1px solid var(--border)',
+    marginTop: 6,
+  }),
+  menuList: (base) => ({
+    ...base,
+    padding: 0,
+  }),
+  placeholder: (base) => ({
+    ...base,
+    color: 'var(--text-tertiary)',
+    fontSize: 14,
+  }),
+  singleValue: (base) => ({
+    ...base,
+    color: 'var(--text-primary)',
+    fontSize: 14,
+  }),
+  input: (base) => ({
+    ...base,
+    color: 'var(--text-primary)',
+    fontSize: 14,
+  }),
+  indicatorSeparator: () => ({
+    display: 'none',
+  }),
+  dropdownIndicator: (base, state) => ({
+    ...base,
+    color: state.isFocused ? 'var(--accent)' : 'var(--text-tertiary)',
+    '&:hover': {
+      color: 'var(--accent)',
+    },
+  }),
+  clearIndicator: (base) => ({
+    ...base,
+    color: 'var(--text-tertiary)',
+    '&:hover': {
+      color: 'var(--danger)',
+    },
+  }),
 };
 
 export default function ProductsBillingTab({ onSaved }) {
@@ -125,7 +179,7 @@ export default function ProductsBillingTab({ onSaved }) {
         <h1 className="page-title">Billing</h1>
       </div>
 
-      <div className="section-block" style={{ maxWidth: 420 }}>
+      <div className="section-block billing-customer-select">
         <div className="field">
           <label>Customer</label>
           <Select
@@ -139,7 +193,7 @@ export default function ProductsBillingTab({ onSaved }) {
         </div>
       </div>
 
-      <div className="surface" style={{ padding: '0 16px' }}>
+      <div className="surface billing-products-surface">
         {rows.map((row) => (
           <ProductRow
             key={row.id}
@@ -153,7 +207,7 @@ export default function ProductsBillingTab({ onSaved }) {
         ))}
       </div>
 
-      <button className="btn btn-ghost" style={{ marginTop: 16 }} onClick={addRow}>
+      <button className="btn btn-ghost billing-add-row-btn" onClick={addRow}>
         + Add Product
       </button>
 

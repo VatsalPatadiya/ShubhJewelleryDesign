@@ -9,6 +9,7 @@ const registerPdfHandlers = require('./ipc/pdf');
 const registerCsvHandlers = require('./ipc/csv');
 const registerBackupHandlers = require('./ipc/backup');
 const registerWhatsappHandlers = require('./ipc/whatsapp');
+const registerSettingsHandlers = require('./ipc/settings');
 
 const isDev = process.env.NODE_ENV === 'development';
 
@@ -20,7 +21,7 @@ function createWindow() {
     height: 840,
     minWidth: 960,
     minHeight: 640,
-    backgroundColor: '#EDF1F3',
+    backgroundColor: '#F4F2EE',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -51,6 +52,7 @@ app.whenReady().then(() => {
   registerCsvHandlers();
   registerBackupHandlers();
   registerWhatsappHandlers();
+  registerSettingsHandlers();
 
   createWindow();
 

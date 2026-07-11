@@ -24,21 +24,23 @@ export default function CustomerTable({ customers, onRowClick, onSendWhatsapp, o
               <td>{c.name}</td>
               <td className="tabular-nums">{c.whatsappNumber}</td>
               <td>
-                <span className="tabular-nums" style={{ marginRight: 8 }}>{c.pendingBills}</span>
-                <button
-                  className={`whatsapp-btn ${c.pendingBills === 0 ? 'disabled' : ''}`}
-                  disabled={c.pendingBills === 0}
-                  title={c.pendingBills === 0 ? 'No pending bills' : 'Send pending bills via WhatsApp'}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (c.pendingBills > 0) onSendWhatsapp(c);
-                  }}
-                >
-                  <WhatsAppIcon />
-                </button>
+                <span className="td-inline-gap">
+                  <span className="tabular-nums">{c.pendingBills}</span>
+                  <button
+                    className={`whatsapp-btn ${c.pendingBills === 0 ? 'disabled' : ''}`}
+                    disabled={c.pendingBills === 0}
+                    title={c.pendingBills === 0 ? 'No pending bills' : 'Send pending bills via WhatsApp'}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (c.pendingBills > 0) onSendWhatsapp(c);
+                    }}
+                  >
+                    <WhatsAppIcon />
+                  </button>
+                </span>
               </td>
               <td className="tabular-nums">{formatCurrency(c.pendingAmount)}</td>
-              <td style={{ textAlign: 'right' }}>
+              <td className="td-right">
                 <button
                   className="btn-text"
                   onClick={(e) => {

@@ -23,17 +23,23 @@ export default function BillsTable({ bills, onToggleStatus, onViewPdf }) {
               <td>{b.customerName}</td>
               <td>{formatDate(b.billDate)}</td>
               <td>
-                <button
-                  className={`status-pill ${b.status === 'PAID' ? 'paid' : 'unpaid'}`}
-                  onClick={() => onToggleStatus(b)}
-                  title="Click to toggle status"
-                >
-                  <span className="status-dot" />
-                  {b.status === 'PAID' ? 'Paid' : 'Not Paid'}
-                </button>
+                <label className="status-toggle" title="Click to toggle payment status">
+                  <input
+                    type="checkbox"
+                    className="status-toggle-input"
+                    checked={b.status === 'PAID'}
+                    onChange={() => onToggleStatus(b)}
+                  />
+                  <span className="status-toggle-track">
+                    <span className="status-toggle-thumb" />
+                  </span>
+                  <span className={`status-toggle-label ${b.status === 'PAID' ? 'paid' : 'unpaid'}`}>
+                    {b.status === 'PAID' ? 'Paid' : 'Unpaid'}
+                  </span>
+                </label>
               </td>
               <td className="tabular-nums">{formatCurrency(b.grandTotal)}</td>
-              <td style={{ textAlign: 'right' }}>
+              <td className="td-right">
                 {b.pdfPath && (
                   <button className="btn-text" onClick={() => onViewPdf(b.pdfPath)}>
                     View PDF

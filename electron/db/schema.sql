@@ -34,3 +34,8 @@ CREATE TABLE IF NOT EXISTS bill_items (
 CREATE INDEX IF NOT EXISTS idx_bills_customer ON bills(customer_id);
 CREATE INDEX IF NOT EXISTS idx_bills_status ON bills(status);
 CREATE INDEX IF NOT EXISTS idx_bill_items_bill ON bill_items(bill_id);
+
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
