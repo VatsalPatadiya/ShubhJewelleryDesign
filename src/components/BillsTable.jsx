@@ -1,6 +1,7 @@
 import { formatCurrency, formatDate } from '../config.js';
+import { EditIcon, TrashIcon } from './icons/NavIcons.jsx';
 
-export default function BillsTable({ bills, onToggleStatus, onViewPdf }) {
+export default function BillsTable({ bills, onToggleStatus, onViewPdf, onEdit, onDelete }) {
   if (bills.length === 0) {
     return null;
   }
@@ -40,11 +41,19 @@ export default function BillsTable({ bills, onToggleStatus, onViewPdf }) {
               </td>
               <td className="tabular-nums">{formatCurrency(b.grandTotal)}</td>
               <td className="td-right">
-                {b.pdfPath && (
-                  <button className="btn-text" onClick={() => onViewPdf(b.pdfPath)}>
-                    View PDF
+                <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>
+                  {b.pdfPath && (
+                    <button className="btn-text" onClick={() => onViewPdf(b.pdfPath)}>
+                      View PDF
+                    </button>
+                  )}
+                  <button className="btn-icon" onClick={() => onEdit(b.id)} title="Edit Bill">
+                    <EditIcon size={16} />
                   </button>
-                )}
+                  <button className="btn-icon btn-icon-danger" onClick={() => onDelete(b.id)} title="Delete Bill">
+                    <TrashIcon size={16} />
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

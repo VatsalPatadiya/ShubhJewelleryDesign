@@ -174,15 +174,21 @@ function drawTableRows(page, font, fontBold, items, startY) {
   let y = startY;
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
+    const hasNote = !!(item.notes && item.notes.trim());
+    const rowHeight = hasNote ? 32 : 18;
+    const rectY = hasNote ? y - 17 : y - 5;
     if (i % 2 === 1) {
-      page.drawRectangle({ x: MARGIN, y: y - 5, width: CONTENT_WIDTH, height: 18, color: C.rowAlt });
+      page.drawRectangle({ x: MARGIN, y: rectY, width: CONTENT_WIDTH, height: rowHeight, color: C.rowAlt });
     }
     page.drawText(item.productName, { x: COL.product, y, font, size: 10, color: C.dark });
+    if (hasNote) {
+      page.drawText(`Note: ${item.notes.trim()}`, { x: COL.product + 8, y: y - 12, font, size: 8, color: C.mid });
+    }
     page.drawText(item.mode === 'GRAM' ? 'Gram' : 'Qty', { x: COL.mode, y, font, size: 10, color: C.mid });
     page.drawText(String(item.value), { x: COL.value, y, font, size: 10, color: C.dark });
     page.drawText(money(item.price), { x: COL.price, y, font, size: 10, color: C.dark });
-    rightAlignText(page, money(item.lineTotal), { y, font: fontBold, size: 10, color: C.dark });
-    y -= 20;
+    rightAlignText(page, money(item.lineTotal ?? item.line_total), { y, font: fontBold, size: 10, color: C.dark });
+    y -= rowHeight + 2;
   }
   return y;
 }
@@ -260,6 +266,17 @@ async function generateBillPdf(customer, bill, items) {
   // Grand total
   y = drawGrandTotalBox(page, font, fontBold, 'Grand Total:', bill.grandTotal ?? bill.grand_total, y);
   y -= 8;
+
+  if (bill.notes && bill.notes.trim()) {
+    page.drawText('Notes:', { x: MARGIN, y, font: fontBold, size: 9, color: C.mid });
+    y -= 12;
+    const lines = bill.notes.trim().split('\n');
+    for (const line of lines) {
+      page.drawText(line, { x: MARGIN, y, font, size: 9, color: C.dark });
+      y -= 12;
+    }
+    y -= 4;
+  }
 
   drawFooter(page, font, y);
 
@@ -340,6 +357,17 @@ async function buildPendingBillsPdf(customer, unpaidBills) {
   const label = previousBills.length > 0 ? 'Grand Total (All Pending):' : 'Grand Total:';
   y = drawGrandTotalBox(page, font, fontBold, label, grandTotal, y);
   y -= 8;
+
+  if (currentBill.notes && currentBill.notes.trim()) {
+    page.drawText('Notes:', { x: MARGIN, y, font: fontBold, size: 9, color: C.mid });
+    y -= 12;
+    const lines = currentBill.notes.trim().split('\n');
+    for (const line of lines) {
+      page.drawText(line, { x: MARGIN, y, font, size: 9, color: C.dark });
+      y -= 12;
+    }
+    y -= 4;
+  }
 
   // Footer
   drawFooter(page, font, y);

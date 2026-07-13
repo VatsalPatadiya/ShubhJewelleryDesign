@@ -5,7 +5,7 @@ const { generateBillPdf } = require('./pdf');
 
 const LIST_QUERY_BASE = `
   SELECT b.id, b.customer_id AS customerId, c.name AS customerName, c.whatsapp_number AS whatsappNumber,
-         b.bill_date AS billDate, b.status, b.grand_total AS grandTotal, b.pdf_path AS pdfPath
+         b.bill_date AS billDate, b.status, b.grand_total AS grandTotal, b.pdf_path AS pdfPath, b.notes
   FROM bills b
   JOIN customers c ON c.id = b.customer_id
 `;
@@ -13,7 +13,7 @@ const LIST_QUERY_BASE = `
 function register() {
   ipcMain.handle('bills:save', async (_event, payload) => {
     const db = getDb();
-    const { customerId, items } = payload || {};
+    const { id: billIdToEdit, customerId, items } = payload || {};
 
     if (!customerId) {
       return { success: false, error: 'Please select a customer.' };
@@ -41,28 +41,39 @@ function register() {
     const grandTotal = items.reduce((sum, item) => sum + Number(item.value) * Number(item.price), 0);
 
     const insertBill = db.prepare(
-      "INSERT INTO bills (customer_id, grand_total, status) VALUES (?, ?, 'UNPAID')"
+      "INSERT INTO bills (customer_id, grand_total, status, notes) VALUES (?, ?, 'UNPAID', ?)"
     );
     const insertItem = db.prepare(
-      'INSERT INTO bill_items (bill_id, product_name, mode, value, price, line_total) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT INTO bill_items (bill_id, product_name, mode, value, price, line_total, notes) VALUES (?, ?, ?, ?, ?, ?, ?)'
     );
     const updatePdfPath = db.prepare('UPDATE bills SET pdf_path = ? WHERE id = ?');
 
-    const billId = db.transaction(() => {
-      const info = insertBill.run(customerId, grandTotal);
-      const id = info.lastInsertRowid;
-      for (const item of items) {
-        const lineTotal = Number(item.value) * Number(item.price);
-        insertItem.run(id, item.productName.trim(), item.mode, Number(item.value), Number(item.price), lineTotal);
+    let billId = billIdToEdit;
+
+    db.transaction(() => {
+      if (billIdToEdit) {
+        db.prepare('UPDATE bills SET customer_id = ?, grand_total = ?, notes = ? WHERE id = ?')
+          .run(customerId, grandTotal, payload.notes || '', billIdToEdit);
+        db.prepare('DELETE FROM bill_items WHERE bill_id = ?').run(billIdToEdit);
+        for (const item of items) {
+          const lineTotal = Number(item.value) * Number(item.price);
+          insertItem.run(billIdToEdit, item.productName.trim(), item.mode, Number(item.value), Number(item.price), lineTotal, item.notes || '');
+        }
+      } else {
+        const info = insertBill.run(customerId, grandTotal, payload.notes || '');
+        billId = info.lastInsertRowid;
+        for (const item of items) {
+          const lineTotal = Number(item.value) * Number(item.price);
+          insertItem.run(billId, item.productName.trim(), item.mode, Number(item.value), Number(item.price), lineTotal, item.notes || '');
+        }
       }
-      return id;
     })();
 
     const bill = db.prepare(
-      "SELECT id, bill_date AS billDate, grand_total AS grandTotal FROM bills WHERE id = ?"
+      "SELECT id, bill_date AS billDate, grand_total AS grandTotal, notes FROM bills WHERE id = ?"
     ).get(billId);
     const savedItems = db.prepare(
-      'SELECT product_name AS productName, mode, value, price, line_total AS lineTotal FROM bill_items WHERE bill_id = ?'
+      'SELECT product_name AS productName, mode, value, price, line_total AS lineTotal, notes FROM bill_items WHERE bill_id = ?'
     ).all(billId);
 
     let pdfPath = null;
@@ -70,8 +81,7 @@ function register() {
       pdfPath = await generateBillPdf(customer, bill, savedItems);
       updatePdfPath.run(pdfPath, billId);
     } catch (err) {
-      // Bill is already saved; PDF failure shouldn't roll back billing data.
-      console.error('Failed to generate bill PDF', err);
+      console.error('Failed to generate/update bill PDF', err);
     }
 
     return { success: true, id: billId, grandTotal, pdfPath };
@@ -79,7 +89,7 @@ function register() {
 
   ipcMain.handle('bills:list', (_event, filter) => {
     const db = getDb();
-    const clauses = [];
+    const clauses = ['b.is_deleted = 0'];
     const params = {};
 
     if (filter && filter.customerId) {
@@ -102,6 +112,20 @@ function register() {
     }
     const db = getDb();
     db.prepare('UPDATE bills SET status = ? WHERE id = ?').run(status, billId);
+    return { success: true };
+  });
+
+  ipcMain.handle('bills:get', (_event, billId) => {
+    const db = getDb();
+    const bill = db.prepare('SELECT id, customer_id AS customerId, bill_date AS billDate, grand_total AS grandTotal, status, notes FROM bills WHERE id = ? AND is_deleted = 0').get(billId);
+    if (!bill) return null;
+    const items = db.prepare('SELECT id, product_name AS productName, mode, value, price, line_total AS lineTotal, notes FROM bill_items WHERE bill_id = ?').all(billId);
+    return { ...bill, items };
+  });
+
+  ipcMain.handle('bills:delete', (_event, billId) => {
+    const db = getDb();
+    db.prepare('UPDATE bills SET is_deleted = 1 WHERE id = ?').run(billId);
     return { success: true };
   });
 }

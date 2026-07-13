@@ -68,6 +68,16 @@ export default function ProductRow({ row, productOptions, onChange, onRemove, on
         <input type="text" readOnly value={formatCurrency(lineTotal)} tabIndex={-1} />
       </div>
 
+      <div className="field-inline">
+        <label>Notes</label>
+        <input
+          type="text"
+          placeholder="Optional notes…"
+          value={row.notes || ''}
+          onChange={(e) => onChange(row.id, { notes: e.target.value })}
+        />
+      </div>
+
       <button
         className="row-remove-btn"
         onClick={() => onRemove(row.id)}

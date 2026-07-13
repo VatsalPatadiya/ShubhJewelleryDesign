@@ -15,7 +15,7 @@ const LIST_QUERY = `
     COALESCE(SUM(CASE WHEN b.status = 'UNPAID' THEN 1 ELSE 0 END), 0) AS pendingBills,
     COALESCE(SUM(CASE WHEN b.status = 'UNPAID' THEN b.grand_total ELSE 0 END), 0) AS pendingAmount
   FROM customers c
-  LEFT JOIN bills b ON b.customer_id = c.id
+  LEFT JOIN bills b ON b.customer_id = c.id AND b.is_deleted = 0
   GROUP BY c.id
   ORDER BY c.name COLLATE NOCASE ASC
 `;
@@ -47,7 +47,7 @@ function register() {
   ipcMain.handle('customers:remove', (_event, id) => {
     const db = getDb();
     const billCount = db
-      .prepare('SELECT COUNT(*) AS count FROM bills WHERE customer_id = ?')
+      .prepare('SELECT COUNT(*) AS count FROM bills WHERE customer_id = ? AND is_deleted = 0')
       .get(id).count;
 
     if (billCount > 0) {

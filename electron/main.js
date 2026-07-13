@@ -10,6 +10,7 @@ const registerCsvHandlers = require('./ipc/csv');
 const registerBackupHandlers = require('./ipc/backup');
 const registerWhatsappHandlers = require('./ipc/whatsapp');
 const registerSettingsHandlers = require('./ipc/settings');
+const registerExpenseHandlers = require('./ipc/expenses');
 
 const isDev = process.env.NODE_ENV === 'development';
 
@@ -53,6 +54,7 @@ app.whenReady().then(() => {
   registerBackupHandlers();
   registerWhatsappHandlers();
   registerSettingsHandlers();
+  registerExpenseHandlers();
 
   createWindow();
 

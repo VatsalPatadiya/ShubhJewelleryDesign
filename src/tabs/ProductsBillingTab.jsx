@@ -6,7 +6,7 @@ import { useToast } from '../context/ToastContext.jsx';
 
 let nextRowId = 1;
 function emptyRow() {
-  return { id: nextRowId++, productName: '', mode: 'GRAM', value: '', price: '' };
+  return { id: nextRowId++, productName: '', mode: 'GRAM', value: '', price: '', notes: '' };
 }
 
 const selectStyles = {
@@ -85,11 +85,12 @@ const selectStyles = {
   }),
 };
 
-export default function ProductsBillingTab({ onSaved }) {
+export default function ProductsBillingTab({ editingBillId, onSaved, onCancelEdit }) {
   const [customers, setCustomers] = useState([]);
   const [productOptions, setProductOptions] = useState([]);
   const [customerId, setCustomerId] = useState(null);
   const [rows, setRows] = useState([emptyRow()]);
+  const [billNotes, setBillNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const { showToast } = useToast();
 
@@ -104,7 +105,25 @@ export default function ProductsBillingTab({ onSaved }) {
 
   useEffect(() => {
     loadData();
-  }, []);
+    if (editingBillId) {
+      window.api.bills.get(editingBillId).then((bill) => {
+        if (bill) {
+          setCustomerId(bill.customerId);
+          setBillNotes(bill.notes || '');
+          setRows(bill.items.map((item) => ({
+            id: nextRowId++,
+            productName: item.productName,
+            mode: item.mode,
+            value: String(item.value),
+            price: String(item.price),
+            notes: item.notes || '',
+          })));
+        }
+      });
+    } else {
+      resetForm();
+    }
+  }, [editingBillId]);
 
   const customerOptions = useMemo(
     () => customers.map((c) => ({ value: c.id, label: c.name })),
@@ -135,6 +154,7 @@ export default function ProductsBillingTab({ onSaved }) {
   function resetForm() {
     setCustomerId(null);
     setRows([emptyRow()]);
+    setBillNotes('');
   }
 
   async function handleSaveBill() {
@@ -152,12 +172,15 @@ export default function ProductsBillingTab({ onSaved }) {
 
     setSaving(true);
     const result = await window.api.bills.save({
+      id: editingBillId,
       customerId,
+      notes: billNotes.trim(),
       items: rows.map((r) => ({
         productName: r.productName.trim(),
         mode: r.mode,
         value: Number(r.value),
         price: Number(r.price),
+        notes: (r.notes || '').trim(),
       })),
     });
     setSaving(false);
@@ -167,7 +190,7 @@ export default function ProductsBillingTab({ onSaved }) {
       return;
     }
 
-    showToast(`Bill saved — grand total ${formatCurrency(result.grandTotal)}.`, 'success');
+    showToast(editingBillId ? 'Bill updated successfully.' : `Bill saved — grand total ${formatCurrency(result.grandTotal)}.`, 'success');
     resetForm();
     loadData();
     onSaved?.();
@@ -176,7 +199,7 @@ export default function ProductsBillingTab({ onSaved }) {
   return (
     <div>
       <div className="page-header">
-        <h1 className="page-title">Billing</h1>
+        <h1 className="page-title">{editingBillId ? 'Edit Bill' : 'Billing'}</h1>
       </div>
 
       <div className="section-block billing-customer-select">
@@ -216,9 +239,28 @@ export default function ProductsBillingTab({ onSaved }) {
         <span className="tabular-nums">{formatCurrency(grandTotal)}</span>
       </div>
 
-      <button className="btn btn-primary" onClick={handleSaveBill} disabled={saving}>
-        {saving ? 'Saving…' : 'Save Bill'}
-      </button>
+      <div className="field" style={{ marginTop: '1.5rem', marginBottom: '1.5rem', maxWidth: '420px' }}>
+        <label htmlFor="bill-notes">Bill Notes</label>
+        <textarea
+          id="bill-notes"
+          rows={3}
+          placeholder="Optional notes for this bill…"
+          value={billNotes}
+          onChange={(e) => setBillNotes(e.target.value)}
+          style={{ width: '100%', resize: 'vertical', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)' }}
+        />
+      </div>
+
+      <div style={{ display: 'flex', gap: '12px' }}>
+        <button className="btn btn-primary" onClick={handleSaveBill} disabled={saving}>
+          {saving ? 'Saving…' : (editingBillId ? 'Update Bill' : 'Save Bill')}
+        </button>
+        {editingBillId && (
+          <button className="btn btn-ghost" onClick={onCancelEdit} disabled={saving}>
+            Cancel
+          </button>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
 import BillsTable from '../components/BillsTable.jsx';
+import Modal from '../components/Modal.jsx';
 import { useToast } from '../context/ToastContext.jsx';
+import CustomSelect from '../components/CustomSelect.jsx';
 
-export default function BillsTab({ initialCustomerId, onFilterConsumed }) {
+export default function BillsTab({ initialCustomerId, onFilterConsumed, onEditBill }) {
   const [customers, setCustomers] = useState([]);
   const [bills, setBills] = useState([]);
   const [customerId, setCustomerId] = useState(initialCustomerId || '');
   const [status, setStatus] = useState('ALL');
   const [loading, setLoading] = useState(true);
+  const [billToDelete, setBillToDelete] = useState(null);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -50,6 +53,18 @@ export default function BillsTab({ initialCustomerId, onFilterConsumed }) {
     }
   }
 
+  async function handleDeleteConfirmed() {
+    if (!billToDelete) return;
+    const result = await window.api.bills.delete(billToDelete);
+    setBillToDelete(null);
+    if (result && result.success) {
+      showToast('Bill deleted successfully.', 'success');
+      refresh();
+    } else {
+      showToast('Failed to delete bill.', 'error');
+    }
+  }
+
   return (
     <div>
       <div className="page-header">
@@ -57,17 +72,23 @@ export default function BillsTab({ initialCustomerId, onFilterConsumed }) {
       </div>
 
       <div className="filter-bar">
-        <select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-          <option value="">All Customers</option>
-          {customers.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
-        <select value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="ALL">All</option>
-          <option value="UNPAID">Unpaid</option>
-          <option value="PAID">Paid</option>
-        </select>
+        <CustomSelect
+          value={customerId}
+          onChange={setCustomerId}
+          options={[
+            { value: '', label: 'All Customers' },
+            ...customers.map((c) => ({ value: c.id, label: c.name }))
+          ]}
+        />
+        <CustomSelect
+          value={status}
+          onChange={setStatus}
+          options={[
+            { value: 'ALL', label: 'All' },
+            { value: 'UNPAID', label: 'Unpaid' },
+            { value: 'PAID', label: 'Paid' }
+          ]}
+        />
       </div>
 
       {!loading && bills.length === 0 && (
@@ -76,7 +97,30 @@ export default function BillsTab({ initialCustomerId, onFilterConsumed }) {
         </div>
       )}
 
-      <BillsTable bills={bills} onToggleStatus={handleToggleStatus} onViewPdf={handleViewPdf} />
+      <BillsTable
+        bills={bills}
+        onToggleStatus={handleToggleStatus}
+        onViewPdf={handleViewPdf}
+        onEdit={onEditBill}
+        onDelete={(id) => setBillToDelete(id)}
+      />
+
+      {billToDelete && (
+        <Modal
+          title="Delete Bill?"
+          onClose={() => setBillToDelete(null)}
+          footer={
+            <>
+              <button className="btn btn-ghost" onClick={() => setBillToDelete(null)}>Cancel</button>
+              <button className="btn btn-danger" onClick={handleDeleteConfirmed}>Delete</button>
+            </>
+          }
+        >
+          <p>
+            Are you sure you want to delete this bill? This will soft delete the bill, so it will no longer count towards pending totals or show up in active lists. This cannot be undone.
+          </p>
+        </Modal>
+      )}
     </div>
   );
 }

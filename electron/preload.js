@@ -17,6 +17,8 @@ contextBridge.exposeInMainWorld('api', {
     save: (billPayload) => ipcRenderer.invoke('bills:save', billPayload),
     list: (filter) => ipcRenderer.invoke('bills:list', filter),
     updateStatus: (billId, status) => ipcRenderer.invoke('bills:updateStatus', { billId, status }),
+    delete: (billId) => ipcRenderer.invoke('bills:delete', billId),
+    get: (billId) => ipcRenderer.invoke('bills:get', billId),
   },
   pdf: {
     open: (pdfPath) => ipcRenderer.invoke('pdf:open', pdfPath),
@@ -32,5 +34,15 @@ contextBridge.exposeInMainWorld('api', {
   settings: {
     get: (key) => ipcRenderer.invoke('settings:get', key),
     set: (key, value) => ipcRenderer.invoke('settings:set', { key, value }),
+  },
+  expenses: {
+    list: (filter) => ipcRenderer.invoke('expenses:list', filter),
+    add: (data) => ipcRenderer.invoke('expenses:add', data),
+    update: (data) => ipcRenderer.invoke('expenses:update', data),
+    delete: (id) => ipcRenderer.invoke('expenses:delete', id),
+  },
+  employees: {
+    list: () => ipcRenderer.invoke('employees:list'),
+    add: (name) => ipcRenderer.invoke('employees:add', name),
   },
 });

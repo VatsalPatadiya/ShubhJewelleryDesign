@@ -15,7 +15,7 @@ function register() {
     const unpaidBills = db
       .prepare(
         `SELECT id, bill_date AS billDate, grand_total AS grandTotal
-         FROM bills WHERE customer_id = ? AND status = 'UNPAID' ORDER BY bill_date ASC`
+         FROM bills WHERE customer_id = ? AND status = 'UNPAID' AND is_deleted = 0 ORDER BY bill_date ASC`
       )
       .all(customerId);
 

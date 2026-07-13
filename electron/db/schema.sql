@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS bills (
   grand_total REAL NOT NULL,
   status TEXT NOT NULL DEFAULT 'UNPAID' CHECK (status IN ('UNPAID','PAID')),
   pdf_path TEXT,
+  notes TEXT,
+  is_deleted INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -28,7 +30,8 @@ CREATE TABLE IF NOT EXISTS bill_items (
   mode TEXT NOT NULL CHECK (mode IN ('GRAM','QUANTITY')),
   value REAL NOT NULL,
   price REAL NOT NULL,
-  line_total REAL NOT NULL
+  line_total REAL NOT NULL,
+  notes TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_bills_customer ON bills(customer_id);
@@ -38,4 +41,21 @@ CREATE INDEX IF NOT EXISTS idx_bill_items_bill ON bill_items(bill_id);
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS employees (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS expenses (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  description TEXT NOT NULL,
+  amount REAL NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('CREDIT', 'DEBIT')),
+  is_salary INTEGER DEFAULT 0,
+  employee_id INTEGER REFERENCES employees(id),
+  date TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now'))
 );
