@@ -2,40 +2,135 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
 import { ToastProvider } from './context/ToastContext.jsx';
+import { initCryptoKey, encrypt, decrypt } from './crypto.js';
 import './styles/tokens.css';
 import './styles/global.css';
 
-if (typeof window !== 'undefined' && !window.api) {
-  // Helper to read and write mock database tables in browser local storage
-  const getMockData = (key) => {
+// ── Encrypted localStorage helpers ──────────────────────────
+
+/**
+ * Read an encrypted value from localStorage, decrypt it, and JSON.parse.
+ * Returns fallback if the key is missing or decryption fails.
+ */
+async function getEncryptedItem(storageKey, fallback) {
+  const raw = localStorage.getItem(storageKey);
+  if (raw === null || raw === '') return fallback;
+
+  try {
+    const decrypted = await decrypt(raw);
+    return JSON.parse(decrypted);
+  } catch {
+    // Possibly legacy unencrypted data — try plain parse
     try {
-      return JSON.parse(localStorage.getItem(`mock_db_${key}`) || '[]');
+      return JSON.parse(raw);
     } catch {
-      return [];
+      return fallback;
     }
-  };
-  const setMockData = (key, data) => {
-    localStorage.setItem(`mock_db_${key}`, JSON.stringify(data));
-  };
+  }
+}
+
+/**
+ * JSON.stringify a value, encrypt it, and store in localStorage.
+ */
+async function setEncryptedItem(storageKey, value) {
+  const json = JSON.stringify(value);
+  const encrypted = await encrypt(json);
+  localStorage.setItem(storageKey, encrypted);
+}
+
+/**
+ * Read an encrypted string value (not JSON-wrapped).
+ */
+async function getEncryptedString(storageKey) {
+  const raw = localStorage.getItem(storageKey);
+  if (raw === null || raw === '') return null;
+
+  try {
+    return await decrypt(raw);
+  } catch {
+    // Possibly legacy unencrypted string — return as-is
+    return raw;
+  }
+}
+
+/**
+ * Encrypt a plain string and store it.
+ */
+async function setEncryptedString(storageKey, value) {
+  const encrypted = await encrypt(String(value));
+  localStorage.setItem(storageKey, encrypted);
+}
+
+// ── Migrate legacy unencrypted data ─────────────────────────
+
+async function migrateLegacyData() {
+  const keys = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    keys.push(localStorage.key(i));
+  }
+
+  for (const key of keys) {
+    if (!key.startsWith('mock_db_') && !key.startsWith('mock_setting_')) continue;
+
+    const raw = localStorage.getItem(key);
+    if (raw === null || raw === '') continue;
+
+    // Try to detect if data is already encrypted (Base64 that fails JSON.parse)
+    let isPlainJson = false;
+    try {
+      JSON.parse(raw);
+      isPlainJson = true;
+    } catch {
+      // Not valid JSON — either already encrypted or corrupted
+      // Try to decrypt it to verify
+      try {
+        await decrypt(raw);
+        // Successfully decrypted — already migrated
+        continue;
+      } catch {
+        // Neither valid JSON nor valid encrypted data — skip
+        continue;
+      }
+    }
+
+    if (isPlainJson) {
+      // Legacy unencrypted data — re-encrypt it
+      const encrypted = await encrypt(raw);
+      localStorage.setItem(key, encrypted);
+    }
+  }
+
+  // Also migrate the sidebar-collapsed preference
+  const collapseRaw = localStorage.getItem('sidebar-collapsed');
+  if (collapseRaw === '0' || collapseRaw === '1') {
+    const encrypted = await encrypt(collapseRaw);
+    localStorage.setItem('sidebar-collapsed', encrypted);
+  }
+}
+
+// ── Build mock API with encrypted storage ───────────────────
+
+function buildMockApi() {
+  const getMockData = (key) => getEncryptedItem(`mock_db_${key}`, []);
+  const setMockData = (key, data) => setEncryptedItem(`mock_db_${key}`, data);
 
   window.api = {
     settings: {
-      get: (key) => {
-        const val = localStorage.getItem(`mock_setting_${key}`);
-        if (val !== null) return Promise.resolve(val);
-        if (key === 'brand_title') return Promise.resolve('SHUBH JEWELLERS');
-        return Promise.resolve(null);
+      get: async (key) => {
+        const val = await getEncryptedString(`mock_setting_${key}`);
+        if (val !== null) return val;
+        if (key === 'brand_title') return 'SHUBH JEWELLERS';
+        return null;
       },
-      set: (key, val) => {
-        localStorage.setItem(`mock_setting_${key}`, String(val));
-        return Promise.resolve({ success: true });
+      set: async (key, val) => {
+        await setEncryptedString(`mock_setting_${key}`, val);
+        return { success: true };
       },
     },
     customers: {
-      list: () => {
-        const customers = getMockData('customers');
-        const bills = getMockData('bills');
-        // Aggregate pending bills and amounts
+      list: async () => {
+        const customers = await getMockData('customers');
+        const bills = await getMockData('bills');
         const decorated = customers.map((c) => {
           const unpaid = bills.filter(
             (b) => b.customerId === c.id && !b.isDeleted && b.status === 'UNPAID'
@@ -46,10 +141,10 @@ if (typeof window !== 'undefined' && !window.api) {
             pendingAmount: unpaid.reduce((sum, b) => sum + (b.grandTotal || 0), 0),
           };
         });
-        return Promise.resolve(decorated);
+        return decorated;
       },
-      add: (customer) => {
-        const list = getMockData('customers');
+      add: async (customer) => {
+        const list = await getMockData('customers');
         const newCustomer = {
           id: Date.now(),
           name: customer.name,
@@ -57,45 +152,45 @@ if (typeof window !== 'undefined' && !window.api) {
           created_at: new Date().toISOString(),
         };
         list.push(newCustomer);
-        setMockData('customers', list);
-        return Promise.resolve({ success: true, id: newCustomer.id });
+        await setMockData('customers', list);
+        return { success: true, id: newCustomer.id };
       },
-      remove: (id) => {
-        const list = getMockData('customers');
+      remove: async (id) => {
+        const list = await getMockData('customers');
         const filtered = list.filter((c) => c.id !== id);
-        setMockData('customers', filtered);
-        return Promise.resolve({ success: true });
+        await setMockData('customers', filtered);
+        return { success: true };
       },
     },
     products: {
-      listMaster: () => Promise.resolve(getMockData('products')),
-      addMaster: (name) => {
-        const list = getMockData('products');
+      listMaster: async () => getMockData('products'),
+      addMaster: async (name) => {
+        const list = await getMockData('products');
         if (list.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
-          return Promise.resolve({ success: false, error: 'Product already exists.' });
+          return { success: false, error: 'Product already exists.' };
         }
         const newProduct = { id: Date.now(), name };
         list.push(newProduct);
-        setMockData('products', list);
-        return Promise.resolve({ success: true, product: newProduct });
+        await setMockData('products', list);
+        return { success: true, product: newProduct };
       },
     },
     bills: {
-      list: (filter) => {
-        let list = getMockData('bills').filter((b) => !b.isDeleted);
+      list: async (filter) => {
+        let list = (await getMockData('bills')).filter((b) => !b.isDeleted);
         if (filter && filter.customerId) {
           list = list.filter((b) => b.customerId === Number(filter.customerId));
         }
-        return Promise.resolve(list);
+        return list;
       },
-      get: (id) => {
-        const list = getMockData('bills');
+      get: async (id) => {
+        const list = await getMockData('bills');
         const bill = list.find((b) => b.id === Number(id));
-        return Promise.resolve(bill || null);
+        return bill || null;
       },
-      save: (billData) => {
-        const list = getMockData('bills');
-        const customers = getMockData('customers');
+      save: async (billData) => {
+        const list = await getMockData('bills');
+        const customers = await getMockData('customers');
         const cust = customers.find((c) => c.id === Number(billData.customerId));
         const customerName = cust ? cust.name : 'Unknown';
 
@@ -135,26 +230,26 @@ if (typeof window !== 'undefined' && !window.api) {
           };
           list.push(savedBill);
         }
-        setMockData('bills', list);
-        return Promise.resolve({ success: true, grandTotal: savedBill.grandTotal });
+        await setMockData('bills', list);
+        return { success: true, grandTotal: savedBill.grandTotal };
       },
-      delete: (id) => {
-        const list = getMockData('bills');
+      delete: async (id) => {
+        const list = await getMockData('bills');
         const idx = list.findIndex((b) => b.id === Number(id));
         if (idx !== -1) {
           list[idx].isDeleted = true;
-          setMockData('bills', list);
+          await setMockData('bills', list);
         }
-        return Promise.resolve({ success: true });
+        return { success: true };
       },
-      updateStatus: (id, status) => {
-        const list = getMockData('bills');
+      updateStatus: async (id, status) => {
+        const list = await getMockData('bills');
         const idx = list.findIndex((b) => b.id === Number(id));
         if (idx !== -1) {
           list[idx].status = status;
-          setMockData('bills', list);
+          await setMockData('bills', list);
         }
-        return Promise.resolve({ success: true });
+        return { success: true };
       },
     },
     pdf: {
@@ -174,9 +269,9 @@ if (typeof window !== 'undefined' && !window.api) {
         }),
     },
     expenses: {
-      list: (filter) => {
-        const expenses = getMockData('expenses');
-        const employees = getMockData('employees');
+      list: async (filter) => {
+        const expenses = await getMockData('expenses');
+        const employees = await getMockData('employees');
         let filtered = expenses.map((e) => {
           const emp = employees.find((x) => x.id === Number(e.employeeId));
           return { ...e, employeeName: emp ? emp.name : '' };
@@ -199,10 +294,10 @@ if (typeof window !== 'undefined' && !window.api) {
           return b.id - a.id;
         });
 
-        return Promise.resolve(filtered);
+        return filtered;
       },
-      add: (expense) => {
-        const list = getMockData('expenses');
+      add: async (expense) => {
+        const list = await getMockData('expenses');
         const newExpense = {
           id: Date.now(),
           description: expense.description,
@@ -214,19 +309,19 @@ if (typeof window !== 'undefined' && !window.api) {
           created_at: new Date().toISOString(),
         };
         list.push(newExpense);
-        setMockData('expenses', list);
-        return Promise.resolve({ success: true });
+        await setMockData('expenses', list);
+        return { success: true };
       },
-      delete: (id) => {
-        const list = getMockData('expenses');
+      delete: async (id) => {
+        const list = await getMockData('expenses');
         const filtered = list.filter((e) => e.id !== id);
-        setMockData('expenses', filtered);
-        return Promise.resolve({ success: true });
+        await setMockData('expenses', filtered);
+        return { success: true };
       },
-      update: (payload) => {
-        const list = getMockData('expenses');
+      update: async (payload) => {
+        const list = await getMockData('expenses');
         const idx = list.findIndex((e) => e.id === payload.id);
-        if (idx === -1) return Promise.resolve({ success: false, error: 'Not found' });
+        if (idx === -1) return { success: false, error: 'Not found' };
         list[idx] = {
           ...list[idx],
           description: payload.description,
@@ -236,20 +331,20 @@ if (typeof window !== 'undefined' && !window.api) {
           employeeId: payload.isSalary ? Number(payload.employeeId) : null,
           date: payload.date,
         };
-        setMockData('expenses', list);
-        return Promise.resolve({ success: true });
+        await setMockData('expenses', list);
+        return { success: true };
       },
     },
     employees: {
-      list: () => {
-        const list = getMockData('employees');
+      list: async () => {
+        const list = await getMockData('employees');
         list.sort((a, b) => a.name.localeCompare(b.name));
-        return Promise.resolve(list);
+        return list;
       },
-      add: (name) => {
-        const list = getMockData('employees');
+      add: async (name) => {
+        const list = await getMockData('employees');
         if (list.some((emp) => emp.name.toLowerCase() === name.trim().toLowerCase())) {
-          return Promise.resolve({ success: false, error: 'An employee with this name already exists.' });
+          return { success: false, error: 'An employee with this name already exists.' };
         }
         const newEmployee = {
           id: Date.now(),
@@ -257,17 +352,30 @@ if (typeof window !== 'undefined' && !window.api) {
           created_at: new Date().toISOString(),
         };
         list.push(newEmployee);
-        setMockData('employees', list);
-        return Promise.resolve({ success: true });
+        await setMockData('employees', list);
+        return { success: true };
       },
     },
   };
 }
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <ToastProvider>
-      <App />
-    </ToastProvider>
-  </StrictMode>
-);
+// ── Bootstrap: init crypto → migrate → build API → render ───
+
+async function bootstrap() {
+  await initCryptoKey();
+
+  if (typeof window !== 'undefined' && !window.api) {
+    await migrateLegacyData();
+    buildMockApi();
+  }
+
+  createRoot(document.getElementById('root')).render(
+    <StrictMode>
+      <ToastProvider>
+        <App />
+      </ToastProvider>
+    </StrictMode>
+  );
+}
+
+bootstrap();

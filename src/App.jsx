@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { encrypt, decrypt } from './crypto.js';
 import Sidebar from './components/Sidebar.jsx';
 import PinVerificationScreen from './components/PinVerificationScreen.jsx';
 import { CustomersIcon, BillingIcon, BillsIcon, BackupIcon, SettingsIcon, ExpensesIcon } from './components/icons/NavIcons.jsx';
@@ -23,7 +24,8 @@ const COLLAPSE_KEY = 'sidebar-collapsed';
 export default function App() {
   const [activeTab, setActiveTab] = useState('customers');
   const [billsFilterCustomerId, setBillsFilterCustomerId] = useState(null);
-  const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSE_KEY) === '1');
+  const [collapsed, setCollapsed] = useState(false);
+  const collapsedLoaded = useRef(false);
   const [editingBillId, setEditingBillId] = useState(null);
 
   // Security Lock States
@@ -33,8 +35,25 @@ export default function App() {
   const [brandTitle, setBrandTitle] = useState('SHUBH JEWELLERS');
   const [lockTimeout, setLockTimeout] = useState(0);
 
+  // Load encrypted sidebar preference on mount
   useEffect(() => {
-    localStorage.setItem(COLLAPSE_KEY, collapsed ? '1' : '0');
+    decrypt(localStorage.getItem(COLLAPSE_KEY) || '').then((val) => {
+      setCollapsed(val === '1');
+      collapsedLoaded.current = true;
+    }).catch(() => {
+      // Legacy unencrypted or missing — use raw value
+      const raw = localStorage.getItem(COLLAPSE_KEY);
+      setCollapsed(raw === '1');
+      collapsedLoaded.current = true;
+    });
+  }, []);
+
+  // Persist encrypted sidebar preference
+  useEffect(() => {
+    if (!collapsedLoaded.current) return;
+    encrypt(collapsed ? '1' : '0').then((enc) => {
+      localStorage.setItem(COLLAPSE_KEY, enc);
+    });
   }, [collapsed]);
 
   // Load and sync settings
