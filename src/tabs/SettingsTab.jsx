@@ -198,7 +198,7 @@ export default function SettingsTab({ onBrandTitleChange, onSettingsChanged }) {
       </div>
 
       {/* Auto Lock Timeout Card */}
-      <div className="surface section-block backup-card">
+      <div className="surface section-block backup-card" style={{ overflow: 'visible' }}>
         <h2 className="backup-card-title">Auto Lock Timeout</h2>
         <p className="helper-text backup-card-desc">
           Automatically lock the app and request the PIN after the specified duration of inactivity.

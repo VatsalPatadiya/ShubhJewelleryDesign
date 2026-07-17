@@ -287,7 +287,7 @@ export default function ExpensesTab() {
         </div>
       </div>
 
-      <div className="surface section-block expenses-filters" style={{ padding: '16px' }}>
+      <div className="surface section-block expenses-filters" style={{ padding: '16px', overflow: 'visible' }}>
         <div className="field-inline" style={{ flex: 1 }}>
           <label htmlFor="filter-year">Year</label>
           <CustomSelect

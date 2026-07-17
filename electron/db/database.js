@@ -14,6 +14,27 @@ function runMigrations(db) {
   if (!billsColumns.includes('notes')) {
     db.prepare('ALTER TABLE bills ADD COLUMN notes TEXT').run();
   }
+  if (!billsColumns.includes('paid_amount')) {
+    db.prepare('ALTER TABLE bills ADD COLUMN paid_amount REAL DEFAULT 0.0').run();
+    db.prepare("UPDATE bills SET paid_amount = grand_total WHERE status = 'PAID'").run();
+  }
+
+  const settlementsTableExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='bill_settlements'").get();
+  if (!settlementsTableExists) {
+    db.exec(`
+      CREATE TABLE bill_settlements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        bill_id INTEGER NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
+        amount REAL NOT NULL,
+        payment_date TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE INDEX idx_bill_settlements_bill ON bill_settlements(bill_id);
+    `);
+    db.prepare(`
+      INSERT INTO bill_settlements (bill_id, amount, payment_date)
+      SELECT id, paid_amount, bill_date FROM bills WHERE paid_amount > 0
+    `).run();
+  }
 
   const itemsInfo = db.prepare("PRAGMA table_info(bill_items)").all();
   const itemsColumns = itemsInfo.map(c => c.name);

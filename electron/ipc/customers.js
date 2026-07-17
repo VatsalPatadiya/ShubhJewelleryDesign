@@ -13,7 +13,7 @@ const LIST_QUERY = `
     c.whatsapp_number AS whatsappNumber,
     c.created_at AS createdAt,
     COALESCE(SUM(CASE WHEN b.status = 'UNPAID' THEN 1 ELSE 0 END), 0) AS pendingBills,
-    COALESCE(SUM(CASE WHEN b.status = 'UNPAID' THEN b.grand_total ELSE 0 END), 0) AS pendingAmount
+    COALESCE(SUM(CASE WHEN b.status = 'UNPAID' THEN b.grand_total - b.paid_amount ELSE 0 END), 0) AS pendingAmount
   FROM customers c
   LEFT JOIN bills b ON b.customer_id = c.id AND b.is_deleted = 0
   GROUP BY c.id

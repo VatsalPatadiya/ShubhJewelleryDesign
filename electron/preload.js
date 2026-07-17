@@ -17,8 +17,13 @@ contextBridge.exposeInMainWorld('api', {
     save: (billPayload) => ipcRenderer.invoke('bills:save', billPayload),
     list: (filter) => ipcRenderer.invoke('bills:list', filter),
     updateStatus: (billId, status) => ipcRenderer.invoke('bills:updateStatus', { billId, status }),
+    updatePaidAmount: (billId, paidAmount, paymentMethod, chequeNumber, notes) => 
+      ipcRenderer.invoke('bills:updatePaidAmount', { billId, paidAmount, paymentMethod, chequeNumber, notes }),
     delete: (billId) => ipcRenderer.invoke('bills:delete', billId),
     get: (billId) => ipcRenderer.invoke('bills:get', billId),
+    updateSettlement: (settlementId, amount, paymentMethod, chequeNumber, notes) => 
+      ipcRenderer.invoke('bills:updateSettlement', { settlementId, amount, paymentMethod, chequeNumber, notes }),
+    deleteSettlement: (settlementId) => ipcRenderer.invoke('bills:deleteSettlement', { settlementId }),
   },
   pdf: {
     open: (pdfPath) => ipcRenderer.invoke('pdf:open', pdfPath),

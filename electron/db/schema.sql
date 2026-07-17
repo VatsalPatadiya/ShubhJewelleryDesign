@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS bills (
   customer_id INTEGER NOT NULL REFERENCES customers(id),
   bill_date TEXT NOT NULL DEFAULT (datetime('now')),
   grand_total REAL NOT NULL,
+  paid_amount REAL DEFAULT 0.0,
   status TEXT NOT NULL DEFAULT 'UNPAID' CHECK (status IN ('UNPAID','PAID')),
   pdf_path TEXT,
   notes TEXT,
@@ -37,6 +38,15 @@ CREATE TABLE IF NOT EXISTS bill_items (
 CREATE INDEX IF NOT EXISTS idx_bills_customer ON bills(customer_id);
 CREATE INDEX IF NOT EXISTS idx_bills_status ON bills(status);
 CREATE INDEX IF NOT EXISTS idx_bill_items_bill ON bill_items(bill_id);
+
+CREATE TABLE IF NOT EXISTS bill_settlements (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  bill_id INTEGER NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
+  amount REAL NOT NULL,
+  payment_date TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_bill_settlements_bill ON bill_settlements(bill_id);
 
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,

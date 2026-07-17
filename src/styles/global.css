@@ -389,6 +389,7 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
+  overflow: hidden;
 }
 
 /* ── Tables ─────────────────────────────────────────────────── */
@@ -688,7 +689,7 @@ table.data-table {
   width: calc(100% - var(--space-4));
   box-shadow: var(--shadow-xl);
   animation: modal-in 0.25s var(--ease-spring);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .modal-header {

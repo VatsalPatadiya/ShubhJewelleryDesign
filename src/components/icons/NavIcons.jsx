@@ -124,3 +124,15 @@ export function ExpensesIcon(props) {
   );
 }
 
+export function PaymentIcon(props) {
+  return (
+    <Base {...props}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M8 7h8" />
+      <path d="M8 10h8" />
+      <path d="M8 7c4 0 5 3.5 0 3.5" />
+      <path d="M10 10.5 L15 16" />
+    </Base>
+  );
+}
+

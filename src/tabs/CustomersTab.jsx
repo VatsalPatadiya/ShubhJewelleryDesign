@@ -51,6 +51,7 @@ export default function CustomersTab({ onViewBills }) {
 
   async function handleSendWhatsapp(customer) {
     const result = await window.api.whatsapp.sendPendingBills(customer.id);
+    console.log('result', result)
     if (!result.success) {
       showToast(result.error || 'Could not send pending bills.', 'error');
       return;

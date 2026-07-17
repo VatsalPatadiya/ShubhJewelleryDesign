@@ -135,7 +135,7 @@ function drawBrandHeader(page, fontBold, title, topY) {
 function drawInfoLine(page, label, value, font, fontBold, y, opts = {}) {
   const labelSize = opts.size || 10;
   page.drawText(label, { x: MARGIN, y, font: fontBold, size: labelSize, color: C.mid });
-  page.drawText(value, { x: MARGIN + 70, y, font, size: labelSize, color: C.dark });
+  page.drawText(String(value || ''), { x: MARGIN + 70, y, font, size: labelSize, color: C.dark });
   return y - (labelSize + 6);
 }
 
@@ -180,7 +180,7 @@ function drawTableRows(page, font, fontBold, items, startY) {
     if (i % 2 === 1) {
       page.drawRectangle({ x: MARGIN, y: rectY, width: CONTENT_WIDTH, height: rowHeight, color: C.rowAlt });
     }
-    page.drawText(item.productName, { x: COL.product, y, font, size: 10, color: C.dark });
+    page.drawText(String(item.productName || ''), { x: COL.product, y, font, size: 10, color: C.dark });
     if (hasNote) {
       page.drawText(`Note: ${item.notes.trim()}`, { x: COL.product + 8, y: y - 12, font, size: 8, color: C.mid });
     }
@@ -264,8 +264,33 @@ async function generateBillPdf(customer, bill, items) {
   y -= 12;
 
   // Grand total
-  y = drawGrandTotalBox(page, font, fontBold, 'Grand Total:', bill.grandTotal ?? bill.grand_total, y);
-  y -= 8;
+  const gTotal = Number(bill.grandTotal ?? bill.grand_total ?? 0);
+  const pAmount = Number(bill.paidAmount ?? bill.paid_amount ?? 0);
+  if (pAmount > 0) {
+    y = drawGrandTotalBox(page, font, fontBold, 'Grand Total:', gTotal, y);
+    y = drawGrandTotalBox(page, font, fontBold, 'Amount Paid:', pAmount, y);
+    y = drawGrandTotalBox(page, font, fontBold, 'Balance Due:', gTotal - pAmount, y);
+  } else {
+    y = drawGrandTotalBox(page, font, fontBold, 'Grand Total:', gTotal, y);
+  }
+  if (bill.settlements && bill.settlements.length > 0) {
+    page.drawText('Payment History:', { x: MARGIN, y, font: fontBold, size: 9, color: C.mid });
+    y -= 12;
+    for (const s of bill.settlements) {
+      let desc = `Paid ${money(s.amount)} via ${s.paymentMethod || s.payment_method || 'CASH'}`;
+      const chq = s.chequeNumber || s.cheque_number;
+      const notesVal = s.notes;
+      if ((s.paymentMethod || s.payment_method) === 'CHEQUE' && chq) {
+        desc += ` (Cheque No: ${chq})`;
+      } else if ((s.paymentMethod || s.payment_method) === 'OTHER' && notesVal) {
+        desc += ` (Notes: ${notesVal})`;
+      }
+      const payDate = formatDateTime12hr(s.paymentDate || s.payment_date);
+      page.drawText(`${payDate}: ${desc}`, { x: MARGIN, y, font, size: 9, color: C.dark });
+      y -= 12;
+    }
+    y -= 6;
+  }
 
   if (bill.notes && bill.notes.trim()) {
     page.drawText('Notes:', { x: MARGIN, y, font: fontBold, size: 9, color: C.mid });
@@ -296,7 +321,7 @@ async function buildPendingBillsPdf(customer, unpaidBills) {
   const previousBills = unpaidBills.slice(0, -1);
   const currentBill = unpaidBills[unpaidBills.length - 1];
   const currentItems = currentBill.items || [];
-  const grandTotal = unpaidBills.reduce((sum, b) => sum + Number(b.grandTotal), 0);
+  const grandTotal = unpaidBills.reduce((sum, b) => sum + (Number(b.grandTotal) - Number(b.paidAmount ?? b.paid_amount ?? 0)), 0);
 
   const page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   let y = PAGE_HEIGHT - 10;
@@ -334,7 +359,8 @@ async function buildPendingBillsPdf(customer, unpaidBills) {
         });
       }
       page.drawText(formatDateTime12hr(bill.billDate), { x: MARGIN + 8, y, font, size: 10, color: C.dark });
-      rightAlignText(page, money(bill.grandTotal), { y, font: fontBold, size: 10, color: C.dark });
+      const pendingVal = Number(bill.grandTotal) - Number(bill.paidAmount ?? bill.paid_amount ?? 0);
+      rightAlignText(page, money(pendingVal), { y, font: fontBold, size: 10, color: C.dark });
       y -= 20;
     }
     y -= 8;
