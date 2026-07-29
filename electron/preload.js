@@ -25,6 +25,40 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('bills:updateSettlement', { settlementId, amount, paymentMethod, chequeNumber, notes }),
     deleteSettlement: (settlementId) => ipcRenderer.invoke('bills:deleteSettlement', { settlementId }),
   },
+  artisans: {
+    list: () => ipcRenderer.invoke('artisans:list'),
+    add: (data) => ipcRenderer.invoke('artisans:add', data),
+    remove: (id) => ipcRenderer.invoke('artisans:remove', id),
+  },
+  artisanBills: {
+    save: (billPayload) => ipcRenderer.invoke('artisanBills:save', billPayload),
+    list: (filter) => ipcRenderer.invoke('artisanBills:list', filter),
+    updateStatus: (billId, status) => ipcRenderer.invoke('artisanBills:updateStatus', { billId, status }),
+    updatePaidAmount: (billId, paidAmount, paymentMethod, chequeNumber, notes) => 
+      ipcRenderer.invoke('artisanBills:updatePaidAmount', { billId, paidAmount, paymentMethod, chequeNumber, notes }),
+    delete: (billId) => ipcRenderer.invoke('artisanBills:delete', billId),
+    get: (billId) => ipcRenderer.invoke('artisanBills:get', billId),
+    updateSettlement: (settlementId, amount, paymentMethod, chequeNumber, notes) => 
+      ipcRenderer.invoke('artisanBills:updateSettlement', { settlementId, amount, paymentMethod, chequeNumber, notes }),
+    deleteSettlement: (settlementId) => ipcRenderer.invoke('artisanBills:deleteSettlement', { settlementId }),
+  },
+  suppliers: {
+    list: () => ipcRenderer.invoke('suppliers:list'),
+    add: (data) => ipcRenderer.invoke('suppliers:add', data),
+    remove: (id) => ipcRenderer.invoke('suppliers:remove', id),
+  },
+  supplierBills: {
+    save: (billPayload) => ipcRenderer.invoke('supplierBills:save', billPayload),
+    list: (filter) => ipcRenderer.invoke('supplierBills:list', filter),
+    updateStatus: (billId, status) => ipcRenderer.invoke('supplierBills:updateStatus', { billId, status }),
+    updatePaidAmount: (billId, paidAmount, paymentMethod, chequeNumber, notes) => 
+      ipcRenderer.invoke('supplierBills:updatePaidAmount', { billId, paidAmount, paymentMethod, chequeNumber, notes }),
+    delete: (billId) => ipcRenderer.invoke('supplierBills:delete', billId),
+    get: (billId) => ipcRenderer.invoke('supplierBills:get', billId),
+    updateSettlement: (settlementId, amount, paymentMethod, chequeNumber, notes) => 
+      ipcRenderer.invoke('supplierBills:updateSettlement', { settlementId, amount, paymentMethod, chequeNumber, notes }),
+    deleteSettlement: (settlementId) => ipcRenderer.invoke('supplierBills:deleteSettlement', { settlementId }),
+  },
   pdf: {
     open: (pdfPath) => ipcRenderer.invoke('pdf:open', pdfPath),
   },

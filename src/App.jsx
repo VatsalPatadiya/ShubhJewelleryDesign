@@ -6,14 +6,47 @@ import { CustomersIcon, BillingIcon, BillsIcon, BackupIcon, SettingsIcon, Expens
 import CustomersTab from './tabs/CustomersTab.jsx';
 import ProductsBillingTab from './tabs/ProductsBillingTab.jsx';
 import BillsTab from './tabs/BillsTab.jsx';
+
+import ArtisansTab from './tabs/ArtisansTab.jsx';
+import ArtisanBillingTab from './tabs/ArtisanBillingTab.jsx';
+import ArtisanBillsTab from './tabs/ArtisanBillsTab.jsx';
+
+import SuppliersTab from './tabs/SuppliersTab.jsx';
+import SupplierBillingTab from './tabs/SupplierBillingTab.jsx';
+import SupplierBillsTab from './tabs/SupplierBillsTab.jsx';
+
 import ExpensesTab from './tabs/ExpensesTab.jsx';
 import BackupRestoreTab from './tabs/BackupRestoreTab.jsx';
 import SettingsTab from './tabs/SettingsTab.jsx';
 
 const TABS = [
-  { key: 'customers', label: 'Customers', icon: CustomersIcon },
-  { key: 'billing', label: 'Billing', icon: BillingIcon },
-  { key: 'bills', label: 'Bills', icon: BillsIcon },
+  {
+    group: 'Customers',
+    icon: CustomersIcon,
+    items: [
+      { key: 'customers', label: 'Directory', icon: CustomersIcon },
+      { key: 'billing', label: 'Billing', icon: BillingIcon },
+      { key: 'bills', label: 'Bills', icon: BillsIcon },
+    ]
+  },
+  {
+    group: 'Artisans',
+    icon: CustomersIcon,
+    items: [
+      { key: 'artisans', label: 'Directory', icon: CustomersIcon },
+      { key: 'artisan_billing', label: 'Billing', icon: BillingIcon },
+      { key: 'artisan_bills', label: 'Bills', icon: BillsIcon },
+    ]
+  },
+  {
+    group: 'Suppliers',
+    icon: CustomersIcon,
+    items: [
+      { key: 'suppliers', label: 'Directory', icon: CustomersIcon },
+      { key: 'supplier_billing', label: 'Billing', icon: BillingIcon },
+      { key: 'supplier_bills', label: 'Bills', icon: BillsIcon },
+    ]
+  },
   { key: 'expenses', label: 'Manage Expenses', icon: ExpensesIcon },
   { key: 'backup', label: 'Backup & Restore', icon: BackupIcon },
   { key: 'settings', label: 'Settings', icon: SettingsIcon },
@@ -27,6 +60,12 @@ export default function App() {
   const [collapsed, setCollapsed] = useState(false);
   const collapsedLoaded = useRef(false);
   const [editingBillId, setEditingBillId] = useState(null);
+
+  const [artisanBillsFilterId, setArtisanBillsFilterId] = useState(null);
+  const [editingArtisanBillId, setEditingArtisanBillId] = useState(null);
+
+  const [supplierBillsFilterId, setSupplierBillsFilterId] = useState(null);
+  const [editingSupplierBillId, setEditingSupplierBillId] = useState(null);
 
   // Security Lock States
   const [pinRequired, setPinRequired] = useState(false);
@@ -135,6 +174,46 @@ export default function App() {
     setActiveTab('bills');
   }
 
+  function goToBillsForArtisan(id) {
+    setArtisanBillsFilterId(id);
+    setActiveTab('artisan_bills');
+  }
+
+  function handleEditArtisanBill(billId) {
+    setEditingArtisanBillId(billId);
+    setActiveTab('artisan_billing');
+  }
+
+  function handleArtisanBillingSaved() {
+    setEditingArtisanBillId(null);
+    setActiveTab('artisan_bills');
+  }
+
+  function handleCancelArtisanEdit() {
+    setEditingArtisanBillId(null);
+    setActiveTab('artisan_bills');
+  }
+
+  function goToBillsForSupplier(id) {
+    setSupplierBillsFilterId(id);
+    setActiveTab('supplier_bills');
+  }
+
+  function handleEditSupplierBill(billId) {
+    setEditingSupplierBillId(billId);
+    setActiveTab('supplier_billing');
+  }
+
+  function handleSupplierBillingSaved() {
+    setEditingSupplierBillId(null);
+    setActiveTab('supplier_bills');
+  }
+
+  function handleCancelSupplierEdit() {
+    setEditingSupplierBillId(null);
+    setActiveTab('supplier_bills');
+  }
+
   if (pinRequired && !pinVerified) {
     return (
       <PinVerificationScreen
@@ -152,9 +231,9 @@ export default function App() {
         tabs={TABS}
         activeTab={activeTab}
         onSelect={(tabKey) => {
-          if (tabKey !== 'billing') {
-            setEditingBillId(null);
-          }
+          if (tabKey !== 'billing') setEditingBillId(null);
+          if (tabKey !== 'artisan_billing') setEditingArtisanBillId(null);
+          if (tabKey !== 'supplier_billing') setEditingSupplierBillId(null);
           setActiveTab(tabKey);
         }}
         collapsed={collapsed}
@@ -175,6 +254,38 @@ export default function App() {
             initialCustomerId={billsFilterCustomerId}
             onFilterConsumed={() => setBillsFilterCustomerId(null)}
             onEditBill={handleEditBill}
+          />
+        )}
+
+        {activeTab === 'artisans' && <ArtisansTab onViewBills={goToBillsForArtisan} />}
+        {activeTab === 'artisan_billing' && (
+          <ArtisanBillingTab
+            editingBillId={editingArtisanBillId}
+            onSaved={handleArtisanBillingSaved}
+            onCancelEdit={handleCancelArtisanEdit}
+          />
+        )}
+        {activeTab === 'artisan_bills' && (
+          <ArtisanBillsTab
+            initialArtisanId={artisanBillsFilterId}
+            onFilterConsumed={() => setArtisanBillsFilterId(null)}
+            onEditBill={handleEditArtisanBill}
+          />
+        )}
+
+        {activeTab === 'suppliers' && <SuppliersTab onViewBills={goToBillsForSupplier} />}
+        {activeTab === 'supplier_billing' && (
+          <SupplierBillingTab
+            editingBillId={editingSupplierBillId}
+            onSaved={handleSupplierBillingSaved}
+            onCancelEdit={handleCancelSupplierEdit}
+          />
+        )}
+        {activeTab === 'supplier_bills' && (
+          <SupplierBillsTab
+            initialSupplierId={supplierBillsFilterId}
+            onFilterConsumed={() => setSupplierBillsFilterId(null)}
+            onEditBill={handleEditSupplierBill}
           />
         )}
         {activeTab === 'expenses' && <ExpensesTab />}

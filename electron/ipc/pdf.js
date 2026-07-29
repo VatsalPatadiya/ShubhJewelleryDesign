@@ -426,3 +426,5 @@ function register() {
 module.exports = register;
 module.exports.generateBillPdf = generateBillPdf;
 module.exports.buildPendingBillsPdf = buildPendingBillsPdf;
+module.exports.generateArtisanBillPdf = generateBillPdf;
+module.exports.generateSupplierBillPdf = generateBillPdf;

@@ -114,7 +114,7 @@ function register() {
     const query = `${LIST_QUERY_BASE} ${where} ORDER BY b.bill_date DESC`;
     const rows = db.prepare(query).all(params);
 
-    const getSettlements = db.prepare('SELECT id, amount, payment_date AS paymentDate FROM bill_settlements WHERE bill_id = ? ORDER BY payment_date DESC');
+    const getSettlements = db.prepare('SELECT id, amount, payment_method AS paymentMethod, cheque_number AS chequeNumber, notes, payment_date AS paymentDate FROM bill_settlements WHERE bill_id = ? ORDER BY payment_date DESC');
     for (const row of rows) {
       row.settlements = getSettlements.all(row.id);
     }
@@ -169,11 +169,12 @@ function register() {
     if (paymentAmount < 0) {
       return { success: false, error: 'Payment amount cannot be negative.' };
     }
-    const newPaidAmount = Number(bill.paid_amount || 0) + paymentAmount;
-    if (newPaidAmount > bill.grand_total) {
+    const newPaidAmount = Math.round((Number(bill.paid_amount || 0) + paymentAmount) * 100) / 100;
+    const grandTotalRounded = Math.round(bill.grand_total * 100) / 100;
+    if (newPaidAmount > grandTotalRounded) {
       return { success: false, error: 'Total paid amount cannot exceed grand total.' };
     }
-    const status = newPaidAmount === bill.grand_total ? 'PAID' : 'UNPAID';
+    const status = newPaidAmount >= grandTotalRounded ? 'PAID' : 'UNPAID';
     
     const method = paymentMethod || 'CASH';
     const chq = chequeNumber || null;
@@ -234,11 +235,12 @@ function register() {
       return { success: false, error: 'Bill not found.' };
     }
     const otherPaymentsSum = Number(bill.paid_amount || 0) - Number(settlement.amount || 0);
-    const newPaidAmount = otherPaymentsSum + newAmount;
-    if (newPaidAmount > bill.grand_total) {
+    const newPaidAmount = Math.round((otherPaymentsSum + newAmount) * 100) / 100;
+    const grandTotalRounded = Math.round(bill.grand_total * 100) / 100;
+    if (newPaidAmount > grandTotalRounded) {
       return { success: false, error: 'Total paid amount cannot exceed grand total.' };
     }
-    const status = newPaidAmount === bill.grand_total ? 'PAID' : 'UNPAID';
+    const status = newPaidAmount >= grandTotalRounded ? 'PAID' : 'UNPAID';
     
     const method = paymentMethod || 'CASH';
     const chq = chequeNumber || null;
@@ -280,8 +282,9 @@ function register() {
     if (!bill) {
       return { success: false, error: 'Bill not found.' };
     }
-    const newPaidAmount = Math.max(0, Number(bill.paid_amount || 0) - Number(settlement.amount || 0));
-    const status = newPaidAmount === bill.grand_total ? 'PAID' : 'UNPAID';
+    const newPaidAmount = Math.max(0, Math.round((Number(bill.paid_amount || 0) - Number(settlement.amount || 0)) * 100) / 100);
+    const grandTotalRounded = Math.round(bill.grand_total * 100) / 100;
+    const status = newPaidAmount >= grandTotalRounded ? 'PAID' : 'UNPAID';
 
     db.transaction(() => {
       db.prepare('DELETE FROM bill_settlements WHERE id = ?').run(settlementId);

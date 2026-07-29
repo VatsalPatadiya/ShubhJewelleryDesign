@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
-import BillsTable from '../components/BillsTable.jsx';
+import ArtisanBillsTable from '../components/ArtisanBillsTable.jsx';
 import Modal from '../components/Modal.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import CustomSelect from '../components/CustomSelect.jsx';
 import { formatCurrency } from '../config.js';
 
-export default function BillsTab({ initialCustomerId, onFilterConsumed, onEditBill }) {
-  const [customers, setCustomers] = useState([]);
-  const [bills, setBills] = useState([]);
-  const [customerId, setCustomerId] = useState(initialCustomerId || '');
+export default function ArtisanArtisanBillsTab({ initialArtisanId, onFilterConsumed, onEditBill }) {
+  const [artisans, setArtisans] = useState([]);
+  const [artisanBills, setArtisanBills] = useState([]);
+  const [artisanId, setArtisanId] = useState(initialArtisanId || '');
   const [status, setStatus] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [billToDelete, setBillToDelete] = useState(null);
@@ -31,31 +31,31 @@ export default function BillsTab({ initialCustomerId, onFilterConsumed, onEditBi
   const { showToast } = useToast();
 
   useEffect(() => {
-    window.api.customers.list().then(setCustomers);
+    window.api.artisans.list().then(setArtisans);
   }, []);
 
   useEffect(() => {
-    if (initialCustomerId) {
-      setCustomerId(initialCustomerId);
+    if (initialArtisanId) {
+      setArtisanId(initialArtisanId);
       onFilterConsumed?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialCustomerId]);
+  }, [initialArtisanId]);
 
   async function refresh() {
     setLoading(true);
-    const rows = await window.api.bills.list({
-      customerId: customerId || null,
+    const rows = await window.api.artisanBills.list({
+      artisanId: artisanId || null,
       status,
     });
-    setBills(rows);
+    setArtisanBills(rows);
     setLoading(false);
   }
 
   useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customerId, status]);
+  }, [artisanId, status]);
 
   useEffect(() => {
     if (billToSettle) {
@@ -70,8 +70,8 @@ export default function BillsTab({ initialCustomerId, onFilterConsumed, onEditBi
 
   async function handleToggleStatus(bill) {
     const nextStatus = bill.status === 'PAID' ? 'UNPAID' : 'PAID';
-    await window.api.bills.updateStatus(bill.id, nextStatus);
-    setBills((prev) => prev.map((b) => (b.id === bill.id ? { ...b, status: nextStatus } : b)));
+    await window.api.artisanBills.updateStatus(bill.id, nextStatus);
+    setArtisanBills((prev) => prev.map((b) => (b.id === bill.id ? { ...b, status: nextStatus } : b)));
   }
 
   async function handleViewPdf(pdfPath) {
@@ -83,7 +83,7 @@ export default function BillsTab({ initialCustomerId, onFilterConsumed, onEditBi
 
   async function handleDeleteConfirmed() {
     if (!billToDelete) return;
-    const result = await window.api.bills.delete(billToDelete);
+    const result = await window.api.artisanBills.delete(billToDelete);
     setBillToDelete(null);
     if (result && result.success) {
       showToast('Bill deleted successfully.', 'success');
@@ -107,7 +107,7 @@ export default function BillsTab({ initialCustomerId, onFilterConsumed, onEditBi
       return;
     }
     
-    const result = await window.api.bills.updatePaidAmount(
+    const result = await window.api.artisanBills.updatePaidAmount(
       billToSettle.id, 
       amountNum, 
       paymentMethod, 
@@ -138,7 +138,7 @@ export default function BillsTab({ initialCustomerId, onFilterConsumed, onEditBi
       return;
     }
 
-    const result = await window.api.bills.updateSettlement(
+    const result = await window.api.artisanBills.updateSettlement(
       settlementToEdit.id, 
       amountNum, 
       editPaymentMethod, 
@@ -157,7 +157,7 @@ export default function BillsTab({ initialCustomerId, onFilterConsumed, onEditBi
 
   async function handleDeleteSettlementConfirmed() {
     if (!settlementToDelete) return;
-    const result = await window.api.bills.deleteSettlement(settlementToDelete.id);
+    const result = await window.api.artisanBills.deleteSettlement(settlementToDelete.id);
     if (result && result.success) {
       showToast('Payment deleted successfully.', 'success');
       setSettlementToDelete(null);
@@ -171,16 +171,16 @@ export default function BillsTab({ initialCustomerId, onFilterConsumed, onEditBi
   return (
     <div>
       <div className="page-header">
-        <h1 className="page-title">Bills</h1>
+        <h1 className="page-title">ArtisanBills</h1>
       </div>
 
       <div className="filter-bar">
         <CustomSelect
-          value={customerId}
-          onChange={setCustomerId}
+          value={artisanId}
+          onChange={setArtisanId}
           options={[
-            { value: '', label: 'All Customers' },
-            ...customers.map((c) => ({ value: c.id, label: c.name }))
+            { value: '', label: 'All Artisans' },
+            ...artisans.map((c) => ({ value: c.id, label: c.name }))
           ]}
         />
         <CustomSelect
@@ -194,14 +194,14 @@ export default function BillsTab({ initialCustomerId, onFilterConsumed, onEditBi
         />
       </div>
 
-      {!loading && bills.length === 0 && (
+      {!loading && artisanBills.length === 0 && (
         <div className="empty-state">
-          <p>No bills yet.</p>
+          <p>No artisanBills yet.</p>
         </div>
       )}
 
-      <BillsTable
-        bills={bills}
+      <ArtisanBillsTable
+        artisanBills={artisanBills}
         onToggleStatus={handleToggleStatus}
         onViewPdf={handleViewPdf}
         onEdit={onEditBill}
@@ -241,7 +241,7 @@ export default function BillsTab({ initialCustomerId, onFilterConsumed, onEditBi
 
       {billToSettle && (
         <Modal
-          title={`Settle Bill - ${billToSettle.customerName}`}
+          title={`Settle Bill - ${billToSettle.artisanName}`}
           onClose={() => setBillToSettle(null)}
           footer={
             <>

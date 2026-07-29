@@ -43,6 +43,9 @@ CREATE TABLE IF NOT EXISTS bill_settlements (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   bill_id INTEGER NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
   amount REAL NOT NULL,
+  payment_method TEXT,
+  cheque_number TEXT,
+  notes TEXT,
   payment_date TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -69,3 +72,96 @@ CREATE TABLE IF NOT EXISTS expenses (
   date TEXT NOT NULL,
   created_at TEXT DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS artisans (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  whatsapp_number TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS artisan_bills (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  artisan_id INTEGER NOT NULL REFERENCES artisans(id),
+  bill_date TEXT NOT NULL DEFAULT (datetime('now')),
+  grand_total REAL NOT NULL,
+  paid_amount REAL DEFAULT 0.0,
+  status TEXT NOT NULL DEFAULT 'UNPAID' CHECK (status IN ('UNPAID','PAID')),
+  pdf_path TEXT,
+  notes TEXT,
+  is_deleted INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS artisan_bill_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  bill_id INTEGER NOT NULL REFERENCES artisan_bills(id) ON DELETE CASCADE,
+  product_name TEXT NOT NULL,
+  mode TEXT NOT NULL CHECK (mode IN ('GRAM','QUANTITY')),
+  value REAL NOT NULL,
+  price REAL NOT NULL,
+  line_total REAL NOT NULL,
+  notes TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_artisan_bills_artisan ON artisan_bills(artisan_id);
+CREATE INDEX IF NOT EXISTS idx_artisan_bills_status ON artisan_bills(status);
+CREATE INDEX IF NOT EXISTS idx_artisan_bill_items_bill ON artisan_bill_items(bill_id);
+
+CREATE TABLE IF NOT EXISTS artisan_bill_settlements (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  bill_id INTEGER NOT NULL REFERENCES artisan_bills(id) ON DELETE CASCADE,
+  amount REAL NOT NULL,
+  payment_method TEXT,
+  cheque_number TEXT,
+  notes TEXT,
+  payment_date TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_artisan_bill_settlements_bill ON artisan_bill_settlements(bill_id);
+
+CREATE TABLE IF NOT EXISTS suppliers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  whatsapp_number TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS supplier_bills (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  supplier_id INTEGER NOT NULL REFERENCES suppliers(id),
+  bill_date TEXT NOT NULL DEFAULT (datetime('now')),
+  grand_total REAL NOT NULL,
+  paid_amount REAL DEFAULT 0.0,
+  status TEXT NOT NULL DEFAULT 'UNPAID' CHECK (status IN ('UNPAID','PAID')),
+  pdf_path TEXT,
+  notes TEXT,
+  is_deleted INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS supplier_bill_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  bill_id INTEGER NOT NULL REFERENCES supplier_bills(id) ON DELETE CASCADE,
+  product_name TEXT NOT NULL,
+  mode TEXT NOT NULL CHECK (mode IN ('GRAM','QUANTITY')),
+  value REAL NOT NULL,
+  price REAL NOT NULL,
+  line_total REAL NOT NULL,
+  notes TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_supplier_bills_supplier ON supplier_bills(supplier_id);
+CREATE INDEX IF NOT EXISTS idx_supplier_bills_status ON supplier_bills(status);
+CREATE INDEX IF NOT EXISTS idx_supplier_bill_items_bill ON supplier_bill_items(bill_id);
+
+CREATE TABLE IF NOT EXISTS supplier_bill_settlements (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  bill_id INTEGER NOT NULL REFERENCES supplier_bills(id) ON DELETE CASCADE,
+  amount REAL NOT NULL,
+  payment_method TEXT,
+  cheque_number TEXT,
+  notes TEXT,
+  payment_date TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_supplier_bill_settlements_bill ON supplier_bill_settlements(bill_id);
+

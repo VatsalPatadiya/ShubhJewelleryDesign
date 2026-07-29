@@ -737,6 +737,462 @@ function buildMockApi() {
         return { success: true };
       },
     },
+    artisans: {
+      list: async () => {
+        const artisans = await getMockData('artisans');
+        const bills = await getMockData('artisanBills');
+        return artisans.map((c) => {
+          const unpaid = bills.filter(
+            (b) => b.artisanId === c.id && !b.isDeleted && b.status === 'UNPAID'
+          );
+          return {
+            ...c,
+            pendingBills: unpaid.length,
+            pendingAmount: unpaid.reduce((sum, b) => sum + ((b.grandTotal || 0) - (b.paidAmount || 0)), 0),
+          };
+        });
+      },
+      add: async (data) => {
+        const list = await getMockData('artisans');
+        const newItem = {
+          id: Date.now(),
+          name: data.name,
+          whatsappNumber: data.whatsappNumber,
+          created_at: new Date().toISOString(),
+        };
+        list.push(newItem);
+        await setMockData('artisans', list);
+        return { success: true, id: newItem.id };
+      },
+      remove: async (id) => {
+        const list = await getMockData('artisans');
+        const filtered = list.filter((c) => c.id !== id);
+        await setMockData('artisans', filtered);
+        return { success: true };
+      },
+    },
+    artisanBills: {
+      list: async (filter) => {
+        let list = (await getMockData('artisanBills')).filter((b) => !b.isDeleted);
+        if (filter && filter.artisanId) {
+          list = list.filter((b) => b.artisanId === Number(filter.artisanId));
+        }
+        return list;
+      },
+      get: async (id) => {
+        const list = await getMockData('artisanBills');
+        const bill = list.find((b) => b.id === Number(id));
+        return bill || null;
+      },
+      save: async (billData) => {
+        const list = await getMockData('artisanBills');
+        const artisans = await getMockData('artisans');
+        const art = artisans.find((c) => c.id === Number(billData.artisanId));
+        const artisanName = art ? art.name : 'Unknown';
+
+        const grandTotal = (billData.items || []).reduce(
+          (sum, item) => sum + Number(item.value || 0) * Number(item.price || 0),
+          0
+        );
+
+        let savedBill;
+        if (billData.id) {
+          const idx = list.findIndex((b) => b.id === Number(billData.id));
+          if (idx !== -1) {
+            let newPaidAmount = list[idx].paidAmount || 0.0;
+            if (list[idx].status === 'PAID') {
+              newPaidAmount = grandTotal;
+            } else if (newPaidAmount > grandTotal) {
+              newPaidAmount = grandTotal;
+            }
+            const status = newPaidAmount === grandTotal ? 'PAID' : 'UNPAID';
+
+            list[idx] = {
+              ...list[idx],
+              artisanId: Number(billData.artisanId),
+              artisanName: artisanName,
+              billDate: billData.billDate || new Date().toISOString(),
+              grandTotal: grandTotal,
+              paidAmount: newPaidAmount,
+              status: status,
+              notes: billData.notes,
+              items: billData.items || [],
+            };
+            savedBill = list[idx];
+          }
+        } else {
+          const paidAmount = billData.status === 'PAID' ? grandTotal : 0.0;
+          savedBill = {
+            id: Date.now(),
+            artisanId: Number(billData.artisanId),
+            artisanName: artisanName,
+            billDate: billData.billDate || new Date().toISOString(),
+            grandTotal: grandTotal,
+            paidAmount: paidAmount,
+            status: billData.status || 'UNPAID',
+            notes: billData.notes,
+            isDeleted: false,
+            items: billData.items || [],
+            settlements: paidAmount > 0 ? [{
+              id: Date.now(),
+              amount: paidAmount,
+              paymentDate: new Date().toISOString()
+            }] : [],
+            created_at: new Date().toISOString(),
+          };
+          list.push(savedBill);
+        }
+        await setMockData('artisanBills', list);
+        return { success: true, grandTotal: savedBill.grandTotal };
+      },
+      delete: async (id) => {
+        const list = await getMockData('artisanBills');
+        const idx = list.findIndex((b) => b.id === Number(id));
+        if (idx !== -1) {
+          list[idx].isDeleted = true;
+          await setMockData('artisanBills', list);
+        }
+        return { success: true };
+      },
+      updateStatus: async (id, status) => {
+        const list = await getMockData('artisanBills');
+        const idx = list.findIndex((b) => b.id === Number(id));
+        if (idx !== -1) {
+          list[idx].status = status;
+          if (status === 'PAID') {
+            const remaining = list[idx].grandTotal - (list[idx].paidAmount || 0);
+            list[idx].paidAmount = list[idx].grandTotal;
+            list[idx].settlements = list[idx].settlements || [];
+            if (remaining > 0) {
+              list[idx].settlements.push({
+                id: Date.now(),
+                amount: remaining,
+                paymentMethod: 'CASH',
+                chequeNumber: null,
+                notes: null,
+                paymentDate: new Date().toISOString()
+              });
+            }
+          } else {
+            list[idx].paidAmount = 0.0;
+            list[idx].settlements = [];
+          }
+          await setMockData('artisanBills', list);
+        }
+        return { success: true };
+      },
+      updatePaidAmount: async (id, paidAmount, paymentMethod, chequeNumber, notes) => {
+        const list = await getMockData('artisanBills');
+        const idx = list.findIndex((b) => b.id === Number(id));
+        if (idx !== -1) {
+          const grandTotal = list[idx].grandTotal;
+          const currentPaid = list[idx].paidAmount || 0.0;
+          const paymentAmount = Number(paidAmount || 0);
+          if (paymentAmount < 0) return { success: false, error: 'Payment amount cannot be negative.' };
+          const newPaidAmount = currentPaid + paymentAmount;
+          if (newPaidAmount > grandTotal) return { success: false, error: 'Total paid amount cannot exceed grand total.' };
+          const status = newPaidAmount === grandTotal ? 'PAID' : 'UNPAID';
+          list[idx].paidAmount = newPaidAmount;
+          list[idx].status = status;
+          list[idx].settlements = list[idx].settlements || [];
+          list[idx].settlements.push({
+            id: Date.now(),
+            amount: paymentAmount,
+            paymentMethod: paymentMethod || 'CASH',
+            chequeNumber: chequeNumber || null,
+            notes: notes || null,
+            paymentDate: new Date().toISOString()
+          });
+          await setMockData('artisanBills', list);
+          return { success: true, status };
+        }
+        return { success: false, error: 'Bill not found' };
+      },
+      updateSettlement: async (settlementId, amount, paymentMethod, chequeNumber, notes) => {
+        const list = await getMockData('artisanBills');
+        let foundBillIdx = -1;
+        let foundSettlementIdx = -1;
+        for (let i = 0; i < list.length; i++) {
+          const settlements = list[i].settlements || [];
+          const sIdx = settlements.findIndex((s) => s.id === Number(settlementId));
+          if (sIdx !== -1) {
+            foundBillIdx = i;
+            foundSettlementIdx = sIdx;
+            break;
+          }
+        }
+        if (foundBillIdx === -1) return { success: false, error: 'Settlement not found.' };
+        const bill = list[foundBillIdx];
+        const settlement = bill.settlements[foundSettlementIdx];
+        const newAmount = Number(amount || 0);
+        if (newAmount < 0) return { success: false, error: 'Amount cannot be negative.' };
+        const otherPaymentsSum = (bill.paidAmount || 0) - settlement.amount;
+        const newPaidAmount = otherPaymentsSum + newAmount;
+        if (newPaidAmount > bill.grandTotal) return { success: false, error: 'Total paid amount cannot exceed grand total.' };
+        const status = newPaidAmount === bill.grandTotal ? 'PAID' : 'UNPAID';
+        
+        bill.settlements[foundSettlementIdx].amount = newAmount;
+        bill.settlements[foundSettlementIdx].paymentMethod = paymentMethod || 'CASH';
+        bill.settlements[foundSettlementIdx].chequeNumber = chequeNumber || null;
+        bill.settlements[foundSettlementIdx].notes = notes || null;
+        bill.paidAmount = newPaidAmount;
+        bill.status = status;
+        await setMockData('artisanBills', list);
+        return { success: true };
+      },
+      deleteSettlement: async (settlementId) => {
+        const list = await getMockData('artisanBills');
+        let foundBillIdx = -1;
+        let foundSettlementIdx = -1;
+        for (let i = 0; i < list.length; i++) {
+          const settlements = list[i].settlements || [];
+          const sIdx = settlements.findIndex((s) => s.id === Number(settlementId));
+          if (sIdx !== -1) {
+            foundBillIdx = i;
+            foundSettlementIdx = sIdx;
+            break;
+          }
+        }
+        if (foundBillIdx === -1) return { success: false, error: 'Settlement not found.' };
+        const bill = list[foundBillIdx];
+        const settlement = bill.settlements[foundSettlementIdx];
+        const newPaidAmount = Math.max(0, (bill.paidAmount || 0) - settlement.amount);
+        
+        bill.settlements.splice(foundSettlementIdx, 1);
+        bill.paidAmount = newPaidAmount;
+        bill.status = 'UNPAID';
+        await setMockData('artisanBills', list);
+        return { success: true };
+      },
+    },
+    suppliers: {
+      list: async () => {
+        const suppliers = await getMockData('suppliers');
+        const bills = await getMockData('supplierBills');
+        return suppliers.map((c) => {
+          const unpaid = bills.filter(
+            (b) => b.supplierId === c.id && !b.isDeleted && b.status === 'UNPAID'
+          );
+          return {
+            ...c,
+            pendingBills: unpaid.length,
+            pendingAmount: unpaid.reduce((sum, b) => sum + ((b.grandTotal || 0) - (b.paidAmount || 0)), 0),
+          };
+        });
+      },
+      add: async (data) => {
+        const list = await getMockData('suppliers');
+        const newItem = {
+          id: Date.now(),
+          name: data.name,
+          whatsappNumber: data.whatsappNumber,
+          created_at: new Date().toISOString(),
+        };
+        list.push(newItem);
+        await setMockData('suppliers', list);
+        return { success: true, id: newItem.id };
+      },
+      remove: async (id) => {
+        const list = await getMockData('suppliers');
+        const filtered = list.filter((c) => c.id !== id);
+        await setMockData('suppliers', filtered);
+        return { success: true };
+      },
+    },
+    supplierBills: {
+      list: async (filter) => {
+        let list = (await getMockData('supplierBills')).filter((b) => !b.isDeleted);
+        if (filter && filter.supplierId) {
+          list = list.filter((b) => b.supplierId === Number(filter.supplierId));
+        }
+        return list;
+      },
+      get: async (id) => {
+        const list = await getMockData('supplierBills');
+        const bill = list.find((b) => b.id === Number(id));
+        return bill || null;
+      },
+      save: async (billData) => {
+        const list = await getMockData('supplierBills');
+        const suppliers = await getMockData('suppliers');
+        const sup = suppliers.find((c) => c.id === Number(billData.supplierId));
+        const supplierName = sup ? sup.name : 'Unknown';
+
+        const grandTotal = (billData.items || []).reduce(
+          (sum, item) => sum + Number(item.value || 0) * Number(item.price || 0),
+          0
+        );
+
+        let savedBill;
+        if (billData.id) {
+          const idx = list.findIndex((b) => b.id === Number(billData.id));
+          if (idx !== -1) {
+            let newPaidAmount = list[idx].paidAmount || 0.0;
+            if (list[idx].status === 'PAID') {
+              newPaidAmount = grandTotal;
+            } else if (newPaidAmount > grandTotal) {
+              newPaidAmount = grandTotal;
+            }
+            const status = newPaidAmount === grandTotal ? 'PAID' : 'UNPAID';
+
+            list[idx] = {
+              ...list[idx],
+              supplierId: Number(billData.supplierId),
+              supplierName: supplierName,
+              billDate: billData.billDate || new Date().toISOString(),
+              grandTotal: grandTotal,
+              paidAmount: newPaidAmount,
+              status: status,
+              notes: billData.notes,
+              items: billData.items || [],
+            };
+            savedBill = list[idx];
+          }
+        } else {
+          const paidAmount = billData.status === 'PAID' ? grandTotal : 0.0;
+          savedBill = {
+            id: Date.now(),
+            supplierId: Number(billData.supplierId),
+            supplierName: supplierName,
+            billDate: billData.billDate || new Date().toISOString(),
+            grandTotal: grandTotal,
+            paidAmount: paidAmount,
+            status: billData.status || 'UNPAID',
+            notes: billData.notes,
+            isDeleted: false,
+            items: billData.items || [],
+            settlements: paidAmount > 0 ? [{
+              id: Date.now(),
+              amount: paidAmount,
+              paymentDate: new Date().toISOString()
+            }] : [],
+            created_at: new Date().toISOString(),
+          };
+          list.push(savedBill);
+        }
+        await setMockData('supplierBills', list);
+        return { success: true, grandTotal: savedBill.grandTotal };
+      },
+      delete: async (id) => {
+        const list = await getMockData('supplierBills');
+        const idx = list.findIndex((b) => b.id === Number(id));
+        if (idx !== -1) {
+          list[idx].isDeleted = true;
+          await setMockData('supplierBills', list);
+        }
+        return { success: true };
+      },
+      updateStatus: async (id, status) => {
+        const list = await getMockData('supplierBills');
+        const idx = list.findIndex((b) => b.id === Number(id));
+        if (idx !== -1) {
+          list[idx].status = status;
+          if (status === 'PAID') {
+            const remaining = list[idx].grandTotal - (list[idx].paidAmount || 0);
+            list[idx].paidAmount = list[idx].grandTotal;
+            list[idx].settlements = list[idx].settlements || [];
+            if (remaining > 0) {
+              list[idx].settlements.push({
+                id: Date.now(),
+                amount: remaining,
+                paymentMethod: 'CASH',
+                chequeNumber: null,
+                notes: null,
+                paymentDate: new Date().toISOString()
+              });
+            }
+          } else {
+            list[idx].paidAmount = 0.0;
+            list[idx].settlements = [];
+          }
+          await setMockData('supplierBills', list);
+        }
+        return { success: true };
+      },
+      updatePaidAmount: async (id, paidAmount, paymentMethod, chequeNumber, notes) => {
+        const list = await getMockData('supplierBills');
+        const idx = list.findIndex((b) => b.id === Number(id));
+        if (idx !== -1) {
+          const grandTotal = list[idx].grandTotal;
+          const currentPaid = list[idx].paidAmount || 0.0;
+          const paymentAmount = Number(paidAmount || 0);
+          if (paymentAmount < 0) return { success: false, error: 'Payment amount cannot be negative.' };
+          const newPaidAmount = currentPaid + paymentAmount;
+          if (newPaidAmount > grandTotal) return { success: false, error: 'Total paid amount cannot exceed grand total.' };
+          const status = newPaidAmount === grandTotal ? 'PAID' : 'UNPAID';
+          list[idx].paidAmount = newPaidAmount;
+          list[idx].status = status;
+          list[idx].settlements = list[idx].settlements || [];
+          list[idx].settlements.push({
+            id: Date.now(),
+            amount: paymentAmount,
+            paymentMethod: paymentMethod || 'CASH',
+            chequeNumber: chequeNumber || null,
+            notes: notes || null,
+            paymentDate: new Date().toISOString()
+          });
+          await setMockData('supplierBills', list);
+          return { success: true, status };
+        }
+        return { success: false, error: 'Bill not found' };
+      },
+      updateSettlement: async (settlementId, amount, paymentMethod, chequeNumber, notes) => {
+        const list = await getMockData('supplierBills');
+        let foundBillIdx = -1;
+        let foundSettlementIdx = -1;
+        for (let i = 0; i < list.length; i++) {
+          const settlements = list[i].settlements || [];
+          const sIdx = settlements.findIndex((s) => s.id === Number(settlementId));
+          if (sIdx !== -1) {
+            foundBillIdx = i;
+            foundSettlementIdx = sIdx;
+            break;
+          }
+        }
+        if (foundBillIdx === -1) return { success: false, error: 'Settlement not found.' };
+        const bill = list[foundBillIdx];
+        const settlement = bill.settlements[foundSettlementIdx];
+        const newAmount = Number(amount || 0);
+        if (newAmount < 0) return { success: false, error: 'Amount cannot be negative.' };
+        const otherPaymentsSum = (bill.paidAmount || 0) - settlement.amount;
+        const newPaidAmount = otherPaymentsSum + newAmount;
+        if (newPaidAmount > bill.grandTotal) return { success: false, error: 'Total paid amount cannot exceed grand total.' };
+        const status = newPaidAmount === bill.grandTotal ? 'PAID' : 'UNPAID';
+        
+        bill.settlements[foundSettlementIdx].amount = newAmount;
+        bill.settlements[foundSettlementIdx].paymentMethod = paymentMethod || 'CASH';
+        bill.settlements[foundSettlementIdx].chequeNumber = chequeNumber || null;
+        bill.settlements[foundSettlementIdx].notes = notes || null;
+        bill.paidAmount = newPaidAmount;
+        bill.status = status;
+        await setMockData('supplierBills', list);
+        return { success: true };
+      },
+      deleteSettlement: async (settlementId) => {
+        const list = await getMockData('supplierBills');
+        let foundBillIdx = -1;
+        let foundSettlementIdx = -1;
+        for (let i = 0; i < list.length; i++) {
+          const settlements = list[i].settlements || [];
+          const sIdx = settlements.findIndex((s) => s.id === Number(settlementId));
+          if (sIdx !== -1) {
+            foundBillIdx = i;
+            foundSettlementIdx = sIdx;
+            break;
+          }
+        }
+        if (foundBillIdx === -1) return { success: false, error: 'Settlement not found.' };
+        const bill = list[foundBillIdx];
+        const settlement = bill.settlements[foundSettlementIdx];
+        const newPaidAmount = Math.max(0, (bill.paidAmount || 0) - settlement.amount);
+        
+        bill.settlements.splice(foundSettlementIdx, 1);
+        bill.paidAmount = newPaidAmount;
+        bill.status = 'UNPAID';
+        await setMockData('supplierBills', list);
+        return { success: true };
+      },
+    },
   };
 }
 
