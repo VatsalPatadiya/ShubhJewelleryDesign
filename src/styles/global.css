@@ -64,6 +64,10 @@ body {
 }
 
 /* Brand */
+.sidebar.no-print {
+  display: none !important;
+}
+
 .sidebar-brand {
   display: flex;
   align-items: center;

@@ -37,7 +37,7 @@ function money(amount) {
 }
 
 // ── 12-Hour Date-Time Formatter ──────────────────────────────
-function formatDateTime12hr(dateTimeStr) {
+function formatDateTime12hr(dateTimeStr, showDate = true, showTime = true) {
   if (!dateTimeStr) return '';
   const cleanIso = dateTimeStr.replace(' ', 'T') + (dateTimeStr.includes('T') ? '' : 'Z');
   const d = new Date(cleanIso);
@@ -55,10 +55,15 @@ function formatDateTime12hr(dateTimeStr) {
   const min = String(d.getMinutes()).padStart(2, '0');
   const sec = String(d.getSeconds()).padStart(2, '0');
 
-  return `${day} ${month} ${year}, ${hr}:${min}:${sec} ${ampm}`;
+  const dateStr = `${day} ${month} ${year}`;
+  const timeStr = `${hr}:${min}:${sec} ${ampm}`;
+  
+  if (showDate && showTime) return `${dateStr}, ${timeStr}`;
+  if (showDate) return dateStr;
+  if (showTime) return timeStr;
+  return '';
 }
 
-// ── Dynamic Branding Header Title ────────────────────────────
 function getBrandTitle() {
   try {
     const { getDb } = require('../db/database');
@@ -68,6 +73,41 @@ function getBrandTitle() {
   } catch (err) {
     return 'SHUBH JEWELLERS';
   }
+}
+
+// ── PDF Settings ─────────────────────────────────────────────
+function getPdfSettings() {
+  const settings = {
+    whatsapp: true,
+    product_notes: true,
+    main_notes: true,
+    payment_history: true,
+    date: true,
+    time: true,
+    previous_date: true,
+    previous_time: true,
+    previous_products: false,
+    previous_quantity: false,
+  };
+  try {
+    const { getDb } = require('../db/database');
+    const db = getDb();
+    const rows = db.prepare("SELECT key, value FROM settings WHERE key LIKE 'pdf_%'").all();
+    rows.forEach(row => {
+      if (row.key === 'pdf_show_whatsapp') settings.whatsapp = row.value === 'true';
+      if (row.key === 'pdf_show_product_notes') settings.product_notes = row.value === 'true';
+      if (row.key === 'pdf_show_main_notes') settings.main_notes = row.value === 'true';
+      if (row.key === 'pdf_show_payment_history') settings.payment_history = row.value === 'true';
+      if (row.key === 'pdf_show_date') settings.date = row.value === 'true';
+      if (row.key === 'pdf_show_time') settings.time = row.value === 'true';
+      if (row.key === 'pdf_previous_show_time') settings.previous_time = row.value === 'true';
+      if (row.key === 'pdf_previous_show_products') settings.previous_products = row.value === 'true';
+      if (row.key === 'pdf_previous_show_quantity') settings.previous_quantity = row.value === 'true';
+    });
+  } catch (err) {
+    // ignore
+  }
+  return settings;
 }
 
 // ── Layout ───────────────────────────────────────────────────
@@ -170,11 +210,11 @@ function drawTableHeader(page, fontBold, y) {
   return y - 24;
 }
 
-function drawTableRows(page, font, fontBold, items, startY) {
+function drawTableRows(page, font, fontBold, items, startY, showProductNotes = true) {
   let y = startY;
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
-    const hasNote = !!(item.notes && item.notes.trim());
+    const hasNote = !!(item.notes && item.notes.trim()) && showProductNotes;
     const rowHeight = hasNote ? 32 : 18;
     const rectY = hasNote ? y - 17 : y - 5;
     if (i % 2 === 1) {
@@ -241,6 +281,7 @@ function drawFooter(page, font, y) {
 async function generateBillPdf(customer, bill, items) {
   const pdfDoc = await PDFDocument.create();
   const { font, fontBold } = await embedFonts(pdfDoc);
+  const pdfSettings = getPdfSettings();
 
   const page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   let y = PAGE_HEIGHT - 10;
@@ -254,13 +295,19 @@ async function generateBillPdf(customer, bill, items) {
 
   // Customer info
   y = drawInfoLine(page, 'Customer:', customer.name, font, fontBold, y);
-  y = drawInfoLine(page, 'WhatsApp:', customer.whatsappNumber || customer.whatsapp_number, font, fontBold, y);
-  y = drawInfoLine(page, 'Bill Date:', formatDateTime12hr(bill.billDate || bill.bill_date), font, fontBold, y);
+  if (pdfSettings.whatsapp) {
+    y = drawInfoLine(page, 'WhatsApp:', customer.whatsappNumber || customer.whatsapp_number, font, fontBold, y);
+  }
+  if (pdfSettings.date || pdfSettings.time) {
+    let label = 'Bill Date:';
+    if (!pdfSettings.date && pdfSettings.time) label = 'Bill Time:';
+    y = drawInfoLine(page, label, formatDateTime12hr(bill.billDate || bill.bill_date, pdfSettings.date, pdfSettings.time), font, fontBold, y);
+  }
   y -= 16;
 
   // Items table
   y = drawTableHeader(page, fontBold, y);
-  y = drawTableRows(page, font, fontBold, items, y);
+  y = drawTableRows(page, font, fontBold, items, y, pdfSettings.product_notes);
   y -= 12;
 
   // Grand total
@@ -273,7 +320,7 @@ async function generateBillPdf(customer, bill, items) {
   } else {
     y = drawGrandTotalBox(page, font, fontBold, 'Grand Total:', gTotal, y);
   }
-  if (bill.settlements && bill.settlements.length > 0) {
+  if (pdfSettings.payment_history && bill.settlements && bill.settlements.length > 0) {
     page.drawText('Payment History:', { x: MARGIN, y, font: fontBold, size: 9, color: C.mid });
     y -= 12;
     for (const s of bill.settlements) {
@@ -292,7 +339,7 @@ async function generateBillPdf(customer, bill, items) {
     y -= 6;
   }
 
-  if (bill.notes && bill.notes.trim()) {
+  if (pdfSettings.main_notes && bill.notes && bill.notes.trim()) {
     page.drawText('Notes:', { x: MARGIN, y, font: fontBold, size: 9, color: C.mid });
     y -= 12;
     const lines = bill.notes.trim().split('\n');
@@ -317,6 +364,7 @@ async function generateBillPdf(customer, bill, items) {
 async function buildPendingBillsPdf(customer, unpaidBills) {
   const pdfDoc = await PDFDocument.create();
   const { font, fontBold } = await embedFonts(pdfDoc);
+  const pdfSettings = getPdfSettings();
 
   const previousBills = unpaidBills.slice(0, -1);
   const currentBill = unpaidBills[unpaidBills.length - 1];
@@ -336,8 +384,14 @@ async function buildPendingBillsPdf(customer, unpaidBills) {
 
   // Customer info
   y = drawInfoLine(page, 'Customer:', customer.name, font, fontBold, y);
-  y = drawInfoLine(page, 'WhatsApp:', customer.whatsappNumber || customer.whatsapp_number, font, fontBold, y);
-  y = drawInfoLine(page, 'Bill Date:', formatDateTime12hr(currentBill.billDate), font, fontBold, y);
+  if (pdfSettings.whatsapp) {
+    y = drawInfoLine(page, 'WhatsApp:', customer.whatsappNumber || customer.whatsapp_number, font, fontBold, y);
+  }
+  if (pdfSettings.date || pdfSettings.time) {
+    let label = 'Bill Date:';
+    if (!pdfSettings.date && pdfSettings.time) label = 'Bill Time:';
+    y = drawInfoLine(page, label, formatDateTime12hr(currentBill.billDate, pdfSettings.date, pdfSettings.time), font, fontBold, y);
+  }
   y -= 28; // Increased from 16 for better breathing room
 
   // Previous pending bills (if any)
@@ -346,22 +400,49 @@ async function buildPendingBillsPdf(customer, unpaidBills) {
     y -= 20; // Increased spacing after title
 
     // Headers
-    page.drawText('Bill Date', { x: MARGIN, y, font: fontBold, size: 8, color: C.light });
+    let title = 'Bill Date';
+    if (pdfSettings.previous_time) title = 'Bill Date & Time';
+    page.drawText(title, { x: MARGIN, y, font: fontBold, size: 8, color: C.light });
     rightAlignText(page, 'Pending Amount', { y, font: fontBold, size: 8, color: C.light });
     y -= 22;
 
     for (let i = 0; i < previousBills.length; i++) {
       const bill = previousBills[i];
+      let rowHeight = 18;
+      let hasProducts = false;
+      let productListStr = '';
+      if (pdfSettings.previous_products && bill.items && bill.items.length > 0) {
+        hasProducts = true;
+        productListStr = bill.items.map(item => {
+          const pName = item.productName || item.product_name;
+          if (pdfSettings.previous_quantity) {
+            const unit = item.mode === 'GRAM' ? 'Gram' : 'Qty';
+            return `${pName} (${item.value} ${unit})`;
+          }
+          return pName;
+        }).join(', ');
+        rowHeight += 14;
+      }
+
       if (i % 2 === 0) {
         page.drawRectangle({
-          x: MARGIN, y: y - 5, width: CONTENT_WIDTH, height: 18,
+          x: MARGIN, y: y - (hasProducts ? 19 : 5), width: CONTENT_WIDTH, height: rowHeight,
           color: C.rowAlt,
         });
       }
-      page.drawText(formatDateTime12hr(bill.billDate), { x: MARGIN + 8, y, font, size: 10, color: C.dark });
+      
+      page.drawText(formatDateTime12hr(bill.billDate, true, pdfSettings.previous_time), { x: MARGIN + 8, y, font, size: 10, color: C.dark });
+      
       const pendingVal = Number(bill.grandTotal) - Number(bill.paidAmount ?? bill.paid_amount ?? 0);
       rightAlignText(page, money(pendingVal), { y, font: fontBold, size: 10, color: C.dark });
-      y -= 20;
+      
+      if (hasProducts) {
+        y -= 14;
+        page.drawText(`Products: ${productListStr}`, { x: MARGIN + 16, y, font, size: 9, color: C.mid });
+        y -= 20;
+      } else {
+        y -= 20;
+      }
     }
     y -= 8;
     drawDivider(page, y);
@@ -376,7 +457,7 @@ async function buildPendingBillsPdf(customer, unpaidBills) {
   y = drawTableHeader(page, fontBold, y);
 
   // Table rows
-  y = drawTableRows(page, font, fontBold, currentItems, y);
+  y = drawTableRows(page, font, fontBold, currentItems, y, pdfSettings.product_notes);
   y -= 12;
 
   // Grand total box
@@ -384,7 +465,7 @@ async function buildPendingBillsPdf(customer, unpaidBills) {
   y = drawGrandTotalBox(page, font, fontBold, label, grandTotal, y);
   y -= 8;
 
-  if (currentBill.notes && currentBill.notes.trim()) {
+  if (pdfSettings.main_notes && currentBill.notes && currentBill.notes.trim()) {
     page.drawText('Notes:', { x: MARGIN, y, font: fontBold, size: 9, color: C.mid });
     y -= 12;
     const lines = currentBill.notes.trim().split('\n');

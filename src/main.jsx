@@ -504,7 +504,8 @@ function buildMockApi() {
             page.drawText(item.mode === 'GRAM' ? 'Gram' : 'Qty', { x: COL.mode, y, font, size: 10, color: C.mid });
             page.drawText(String(item.value), { x: COL.value, y, font, size: 10, color: C.dark });
             page.drawText(money(item.price), { x: COL.price, y, font, size: 10, color: C.dark });
-            rightAlignText(page, money(item.lineTotal ?? item.line_total), { y, font: fontBold, size: 10, color: C.dark });
+            const lineTotal = item.lineTotal ?? item.line_total ?? (Number(item.value || 0) * Number(item.price || 0));
+            rightAlignText(page, money(lineTotal), { y, font: fontBold, size: 10, color: C.dark });
             y -= rowHeight + 2;
           }
           return y;
@@ -571,28 +572,68 @@ function buildMockApi() {
         y = drawInfoLine(page, 'Bill Date:', currentBill ? formatDateTime12hr(currentBill.billDate) : 'N/A', y);
         y -= 28;
 
+        const previousProductsSetting = await getEncryptedItem('mock_setting_pdf_previous_show_products', false);
+        const previousTimeSetting = await getEncryptedItem('mock_setting_pdf_previous_show_time', true);
+        const previousQuantitySetting = await getEncryptedItem('mock_setting_pdf_previous_show_quantity', false);
+
         // Previous pending bills (if any)
         if (previousBills.length) {
           page.drawText('PREVIOUS PENDING BILLS', { x: MARGIN, y, font: fontBold, size: 10, color: C.mid });
           y -= 20;
 
           // Headers
-          page.drawText('Bill Date', { x: MARGIN, y, font: fontBold, size: 8, color: C.light });
+          let title = 'Bill Date';
+          if (previousTimeSetting) title = 'Bill Date & Time';
+          page.drawText(title, { x: MARGIN, y, font: fontBold, size: 8, color: C.light });
           rightAlignText(page, 'Pending Amount', { y, font: fontBold, size: 8, color: C.light });
           y -= 22;
 
           for (let i = 0; i < previousBills.length; i++) {
             const bill = previousBills[i];
+            let rowHeight = 18;
+            let hasProducts = false;
+            let productListStr = '';
+            
+            if (previousProductsSetting && bill.items && bill.items.length > 0) {
+              hasProducts = true;
+              productListStr = bill.items.map(item => {
+                const pName = item.productName || item.product_name;
+                if (previousQuantitySetting) {
+                  const unit = item.mode === 'GRAM' ? 'Gram' : 'Qty';
+                  return `${pName} (${item.value} ${unit})`;
+                }
+                return pName;
+              }).join(', ');
+              rowHeight += 14;
+            }
+
             if (i % 2 === 0) {
               page.drawRectangle({
-                x: MARGIN, y: y - 5, width: CONTENT_WIDTH, height: 18,
+                x: MARGIN, y: y - (hasProducts ? 19 : 5), width: CONTENT_WIDTH, height: rowHeight,
                 color: C.rowAlt,
               });
             }
-            page.drawText(formatDateTime12hr(bill.billDate), { x: MARGIN + 8, y, font, size: 10, color: C.dark });
+            // formatDateTime12hr will correctly format since we pass true for date and previousTimeSetting for time
+            const dateTimeStr = formatDateTime12hr(bill.billDate); // wait, mock formatDateTime12hr doesn't take 3 arguments!
+            // I need to adjust the mock's formatDateTime12hr if it doesn't take 3 arguments.
+            // But let's just use it as is if we can't change it easily, or I can update formatDateTime12hr below.
+            // Let me write a custom formatted string here based on previousTimeSetting.
+            let formattedDt = formatDateTime12hr(bill.billDate);
+            if (!previousTimeSetting && formattedDt.includes(',')) {
+              formattedDt = formattedDt.split(',')[0];
+            }
+
+            page.drawText(formattedDt, { x: MARGIN + 8, y, font, size: 10, color: C.dark });
             const pendingVal = Number(bill.grandTotal) - Number(bill.paidAmount || 0);
             rightAlignText(page, money(pendingVal), { y, font: fontBold, size: 10, color: C.dark });
-            y -= 20;
+            
+            if (hasProducts) {
+              y -= 14;
+              page.drawText(`Products: ${productListStr}`, { x: MARGIN + 16, y, font, size: 9, color: C.mid });
+              y -= 20;
+            } else {
+              y -= 20;
+            }
           }
           y -= 8;
           drawDivider(page, y);

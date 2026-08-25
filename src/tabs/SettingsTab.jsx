@@ -9,6 +9,18 @@ export default function SettingsTab({ onBrandTitleChange, onSettingsChanged }) {
   const [currentPin, setCurrentPin] = useState('');
   const [newPin, setNewPin] = useState('');
   const [lockTimeout, setLockTimeout] = useState(0);
+  const [showPendingProducts, setShowPendingProducts] = useState(false);
+  const [pdfSettings, setPdfSettings] = useState({
+    pdf_show_whatsapp: true,
+    pdf_show_product_notes: true,
+    pdf_show_main_notes: true,
+    pdf_show_payment_history: true,
+    pdf_show_date: true,
+    pdf_show_time: true,
+    pdf_previous_show_date: true,
+    pdf_previous_show_time: true,
+    pdf_previous_show_products: false
+  });
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -25,6 +37,22 @@ export default function SettingsTab({ onBrandTitleChange, onSettingsChanged }) {
       if (val !== null && val !== undefined) {
         setLockTimeout(Number(val));
       }
+    });
+    const settingsKeys = [
+      'pdf_show_whatsapp', 'pdf_show_product_notes', 'pdf_show_main_notes', 
+      'pdf_show_payment_history', 'pdf_show_date', 'pdf_show_time',
+      'pdf_previous_show_date', 'pdf_previous_show_time', 'pdf_previous_show_products'
+    ];
+    Promise.all(settingsKeys.map(k => window.api.settings.get(k))).then(values => {
+      setPdfSettings(prev => {
+        const next = { ...prev };
+        settingsKeys.forEach((k, i) => {
+          if (values[i] !== null && values[i] !== undefined) {
+            next[k] = values[i] === 'true';
+          }
+        });
+        return next;
+      });
     });
   }, []);
 
@@ -54,6 +82,17 @@ export default function SettingsTab({ onBrandTitleChange, onSettingsChanged }) {
       onSettingsChanged();
     }
     showToast('Auto lock timeout updated successfully.', 'success');
+  }
+
+
+
+  async function handleTogglePdfSetting(key, checked) {
+    setPdfSettings(prev => ({ ...prev, [key]: checked }));
+    await window.api.settings.set(key, String(checked));
+    if (onSettingsChanged) {
+      onSettingsChanged();
+    }
+    showToast('PDF setting updated.', 'success');
   }
 
   async function handleSetPin() {
@@ -128,6 +167,108 @@ export default function SettingsTab({ onBrandTitleChange, onSettingsChanged }) {
           <button className="btn btn-primary" onClick={handleSaveBrandTitle} style={{ height: 42 }}>
             Save Title
           </button>
+        </div>
+      </div>
+
+      {/* PDF Settings Card */}
+      <div className="surface section-block backup-card" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+        <div>
+          <h2 className="backup-card-title">Current Bill PDF Settings</h2>
+          <p className="helper-text backup-card-desc">
+            Choose which fields to display in the main detailed bill.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: 450, marginTop: 16 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+              <input 
+                type="checkbox" 
+                className="custom-checkbox"
+                checked={pdfSettings.pdf_show_date}
+                onChange={(e) => handleTogglePdfSetting('pdf_show_date', e.target.checked)}
+              />
+              <span style={{ fontWeight: 500 }}>Show Bill Date</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+              <input 
+                type="checkbox" 
+                className="custom-checkbox"
+                checked={pdfSettings.pdf_show_time}
+                onChange={(e) => handleTogglePdfSetting('pdf_show_time', e.target.checked)}
+              />
+              <span style={{ fontWeight: 500 }}>Show Bill Time</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+              <input 
+                type="checkbox" 
+                className="custom-checkbox"
+                checked={pdfSettings.pdf_show_whatsapp}
+                onChange={(e) => handleTogglePdfSetting('pdf_show_whatsapp', e.target.checked)}
+              />
+              <span style={{ fontWeight: 500 }}>Show Customer WhatsApp Number</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+              <input 
+                type="checkbox" 
+                className="custom-checkbox"
+                checked={pdfSettings.pdf_show_product_notes}
+                onChange={(e) => handleTogglePdfSetting('pdf_show_product_notes', e.target.checked)}
+              />
+              <span style={{ fontWeight: 500 }}>Show Product-wise Notes</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+              <input 
+                type="checkbox" 
+                className="custom-checkbox"
+                checked={pdfSettings.pdf_show_main_notes}
+                onChange={(e) => handleTogglePdfSetting('pdf_show_main_notes', e.target.checked)}
+              />
+              <span style={{ fontWeight: 500 }}>Show Main Bill Notes</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+              <input 
+                type="checkbox" 
+                className="custom-checkbox"
+                checked={pdfSettings.pdf_show_payment_history}
+                onChange={(e) => handleTogglePdfSetting('pdf_show_payment_history', e.target.checked)}
+              />
+              <span style={{ fontWeight: 500 }}>Show Payment History</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <h2 className="backup-card-title">Previous Pending Bills Settings</h2>
+          <p className="helper-text backup-card-desc">
+            Choose which fields to display for the previous bills summary section.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: 450, marginTop: 16 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+              <input 
+                type="checkbox" 
+                className="custom-checkbox"
+                checked={pdfSettings.pdf_previous_show_time}
+                onChange={(e) => handleTogglePdfSetting('pdf_previous_show_time', e.target.checked)}
+              />
+              <span style={{ fontWeight: 500 }}>Show Time</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+              <input 
+                type="checkbox" 
+                className="custom-checkbox"
+                checked={pdfSettings.pdf_previous_show_products}
+                onChange={(e) => handleTogglePdfSetting('pdf_previous_show_products', e.target.checked)}
+              />
+              <span style={{ fontWeight: 500 }}>Show Products</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+              <input 
+                type="checkbox" 
+                className="custom-checkbox"
+                checked={pdfSettings.pdf_previous_show_quantity}
+                onChange={(e) => handleTogglePdfSetting('pdf_previous_show_quantity', e.target.checked)}
+              />
+              <span style={{ fontWeight: 500 }}>Show Quantity / Gram</span>
+            </label>
+          </div>
         </div>
       </div>
 

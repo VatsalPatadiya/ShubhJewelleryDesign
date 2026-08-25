@@ -26,8 +26,9 @@ function register() {
     const itemsStmt = db.prepare(
       'SELECT product_name AS productName, mode, value, price, line_total AS lineTotal FROM bill_items WHERE bill_id = ?'
     );
-    const lastBill = unpaidBills[unpaidBills.length - 1];
-    lastBill.items = itemsStmt.all(lastBill.id);
+    for (const bill of unpaidBills) {
+      bill.items = itemsStmt.all(bill.id);
+    }
 
     let pdfPath;
     try {
